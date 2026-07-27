@@ -1,0 +1,39 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}Discovering interfaces from {{ source_name }}{% endblock %}
+
+{% block content %}
+  {% include 'netbox_cisco_sync/inc/discovered_device_tabs.html' %}
+
+  <div class="card">
+    <div class="card-body text-center py-5">
+      <div class="spinner-border text-primary mb-3" role="status">
+        <span class="visually-hidden">Loading…</span>
+      </div>
+      <h1 class="h4">Discovering interfaces from {{ source_name }}…</h1>
+      <p class="text-muted mb-0">
+        This first load may take a moment. The device page will open automatically.
+      </p>
+    </div>
+  </div>
+
+  <form method="post" id="interface-discovery-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="refresh">
+  </form>
+
+  <noscript>
+    <div class="alert alert-warning mt-3">
+      JavaScript is required for automatic discovery.
+      <button type="submit" form="interface-discovery-form" class="btn btn-warning">
+        Discover interfaces
+      </button>
+    </div>
+  </noscript>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      document.getElementById("interface-discovery-form").submit();
+    });
+  </script>
+{% endblock %}

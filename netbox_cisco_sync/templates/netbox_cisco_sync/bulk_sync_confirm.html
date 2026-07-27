@@ -1,0 +1,36 @@
+{% extends 'base/layout.html' %}
+
+{% block title %}Sync and Apply all enabled {{ source_name|default:'vManage' }} devices{% endblock %}
+
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col col-md-8 col-lg-6">
+      <div class="card">
+        <h2 class="card-header">Confirm bulk {{ source_name|default:'vManage' }} Sync and Apply</h2>
+        <div class="card-body">
+          <p>
+            This will collect current data from {{ source_name|default:'vManage' }} and apply it for
+            <strong>{{ device_count }}</strong> enabled device{{ device_count|pluralize }}
+            with a mapped NetBox Site.
+          </p>
+          <p class="text-muted mb-0">
+            The operation runs in the NetBox background queue. Each device receives
+            a separate Sync Run, and one failed device will not stop the remaining devices.
+          </p>
+        </div>
+        <div class="card-footer text-end">
+          <a href="{% if cancel_url %}{% url cancel_url %}{% else %}{% url 'plugins:netbox_cisco_sync:devicevmanageconfig_list' %}{% endif %}"
+             class="btn btn-outline-secondary">Cancel</a>
+          {% if device_count %}
+            <form method="post" class="d-inline">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-success">
+                <i class="mdi mdi-sync"></i> Sync and Apply {{ device_count }} devices
+              </button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

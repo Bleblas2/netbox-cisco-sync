@@ -1,0 +1,11 @@
+ARG NETBOX_IMAGE=netboxcommunity/netbox:v4.6.3
+FROM ${NETBOX_IMAGE}
+
+COPY netbox-cisco-sync /opt/netbox-cisco-sync
+COPY netbox-netwiki /opt/netbox-netwiki
+
+RUN /usr/local/bin/uv pip install --no-cache \
+    --python /opt/netbox/venv/bin/python \
+    --editable /opt/netbox-cisco-sync \
+    --editable /opt/netbox-netwiki \
+    netbox-contextmenus==1.4.14

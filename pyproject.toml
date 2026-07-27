@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netbox-cisco-sync"
+version = "0.1.0"
+authors = [
+    { name = "Lukasz Luczak", email = "bleblas@gmail.com" },
+]
+description = "Synchronize Cisco platform inventory into NetBox."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+keywords = ["netbox", "netbox-plugin", "Cisco", "Catalyst Center", "SD-WAN", "vManage", "network-automation", "ipam", "dcim"]
+dependencies = ["requests>=2.31"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.urls]
+Homepage = "https://github.com/bleblas2/netbox-cisco-sync"
+Repository = "https://github.com/bleblas2/netbox-cisco-sync.git"
+Issues = "https://github.com/bleblas2/netbox-cisco-sync/issues"
+
+[tool.setuptools.packages.find]
+include = ["netbox_cisco_sync*"]
+
+[tool.setuptools.package-data]
+netbox_cisco_sync = ["templates/netbox_cisco_sync/*.html"]

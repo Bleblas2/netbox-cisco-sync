@@ -1,0 +1,37 @@
+{% extends 'generic/object.html' %}
+{% load helpers %}
+{% block content %}
+{% if object.can_revert %}<div class="text-end mb-2">
+  <a href="{% url 'plugins:netbox_cisco_sync:syncrun_revert' pk=object.pk %}" class="btn btn-warning">
+    <i class="mdi mdi-undo-variant"></i> Revert created objects
+  </a>
+</div>{% endif %}
+<div class="row"><div class="col col-md-6"><div class="card">
+  <h2 class="card-header">Sync Run</h2><table class="table table-hover attr-table">
+    <tr><th>Configuration</th><td>{{ object.config|linkify|placeholder }}</td></tr>
+    <tr><th>Catalyst configuration</th><td>{{ object.catalyst_config|linkify|placeholder }}</td></tr>
+    <tr><th>Meraki configuration</th><td>{{ object.meraki_config|linkify|placeholder }}</td></tr>
+    <tr><th>Device</th><td>{{ object.device|linkify|placeholder }}</td></tr>
+    <tr><th>When</th><td>{{ object.created }}</td></tr>
+    <tr><th>Trigger</th><td>{{ object.get_trigger_display }}</td></tr>
+    <tr><th>Mode</th><td>{{ object.get_mode_display }}</td></tr>
+    <tr><th>Status</th><td>{{ object.get_status_display }}</td></tr>
+    <tr><th>Reverted</th><td>{{ object.reverted|yesno:'Yes,No' }}</td></tr>
+  </table>
+</div></div><div class="col col-md-6"><div class="card">
+  <h2 class="card-header">Counters</h2><table class="table table-hover attr-table">
+    <tr><th>Devices created/updated</th><td>{{ object.devices_created }} / {{ object.devices_updated }}</td></tr>
+    <tr><th>Interfaces created/updated</th><td>{{ object.interfaces_created }} / {{ object.interfaces_updated }}</td></tr>
+    <tr><th>IPs created</th><td>{{ object.ips_created }}</td></tr>
+    <tr><th>MACs created</th><td>{{ object.macs_created }}</td></tr>
+    <tr><th>FHRP groups created</th><td>{{ object.fhrp_groups_created }}</td></tr>
+  </table>
+</div></div></div>
+<div class="card mt-3"><h2 class="card-header">Message</h2><div class="card-body"><pre>{{ object.message }}</pre></div></div>
+<div class="card mt-3"><h2 class="card-header">Recorded changes</h2><table class="table table-hover">
+  <thead><tr><th>Action</th><th>Type</th><th>Object</th><th>Field</th><th>Old</th><th>New</th></tr></thead>
+  <tbody>{% for change in object.changes.all %}<tr><td>{{ change.action }}</td><td>{{ change.object_type }}</td>
+  <td>{{ change.object_repr }}</td><td>{{ change.field }}</td><td>{{ change.old_value }}</td><td>{{ change.new_value }}</td></tr>
+  {% empty %}<tr><td colspan="6">No field-level changes.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

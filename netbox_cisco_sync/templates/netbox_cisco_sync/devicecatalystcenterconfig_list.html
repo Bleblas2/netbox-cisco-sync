@@ -1,0 +1,17 @@
+{% extends 'generic/object_list.html' %}
+{% block title %}Discovered Devices{% endblock %}
+{% block tabs %}
+  {% include 'netbox_cisco_sync/inc/discovered_device_tabs.html' %}
+  {{ block.super }}
+{% endblock %}
+{% block extra_controls %}
+  {{ block.super }}
+  {% if perms.netbox_cisco_sync.change_devicecatalystcenterconfig %}
+    <a href="{% url 'plugins:netbox_cisco_sync:catalyst_discover' %}" class="btn btn-primary">
+      <i class="mdi mdi-refresh"></i> Discover from Catalyst Center
+    </a>
+    <a href="{% url 'plugins:netbox_cisco_sync:catalyst_bulk_sync' %}" class="btn btn-success">
+      <i class="mdi mdi-sync"></i> Sync and Apply all enabled devices
+    </a>
+  {% endif %}
+{% endblock %}
