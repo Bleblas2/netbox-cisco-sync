@@ -13,8 +13,10 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('contenttypes', '0002_remove_content_type_name'),
-        ('dcim', '0237_module_remove_local_context_data'),
-        ('extras', '0140_imageattachment_image_size'),
+        # Zależności wskazują końcowe migracje minimalnie wspieranego NetBox 4.6.0.
+        # Nowsze numery z 4.6.x uniemożliwiały instalację pluginu na wersji 4.6.0.
+        ('dcim', '0233_device_render_config_permission'),
+        ('extras', '0138_customfieldchoiceset_choice_colors'),
     ]
 
     operations = [
