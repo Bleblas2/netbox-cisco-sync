@@ -27,4 +27,7 @@ Issues = "https://github.com/bleblas2/netbox-cisco-sync/issues"
 include = ["netbox_cisco_sync*"]
 
 [tool.setuptools.package-data]
-netbox_cisco_sync = ["templates/netbox_cisco_sync/*.html"]
+netbox_cisco_sync = [
+    "templates/netbox_cisco_sync/*.html",
+    "templates/netbox_cisco_sync/inc/*.html",
+]
