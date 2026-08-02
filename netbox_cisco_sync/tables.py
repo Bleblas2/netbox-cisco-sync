@@ -8,11 +8,11 @@ SYNC_BUTTON = """
    class="btn btn-sm btn-primary" title="Preview sync"><i class="mdi mdi-sync"></i></a>
 """
 
-ENABLED_TOGGLE = """
+ENABLED_TOGGLE_TEMPLATE = """
 <button type="submit"
         class="btn btn-sm {% if record.enabled %}btn-success{% else %}btn-outline-secondary{% endif %}"
         title="{% if record.enabled %}Disable sync{% else %}Enable sync{% endif %}"
-        formaction="{% url 'plugins:netbox_cisco_sync:devicevmanageconfig_toggle_enabled' pk=record.pk %}"
+        formaction="{% url 'plugins:netbox_cisco_sync:__toggle_url_name__' pk=record.pk %}"
         formmethod="post"
         formnovalidate>
   <i class="mdi {% if record.enabled %}mdi-checkbox-marked{% else %}mdi-checkbox-blank-outline{% endif %}"></i>
@@ -21,17 +21,22 @@ ENABLED_TOGGLE = """
 """
 
 
+def enabled_toggle_column(url_name):
+    """Zbuduj wspólny przycisk Enabled/Disabled dla wybranej platformy."""
+    return tables.TemplateColumn(
+        template_code=ENABLED_TOGGLE_TEMPLATE.replace("__toggle_url_name__", url_name),
+        order_by=("enabled",),
+        orderable=True,
+    )
+
+
 class DeviceVmanageConfigTable(NetBoxTable):
     hostname = tables.Column(linkify=True, verbose_name="Name")
     # Przycisk w tabeli pozwala szybko włączyć Edge bez otwierania formularza Edit.
     # Używa POST do osobnego widoku, więc zachowuje CSRF oraz kontrolę uprawnień.
     # Wyświetlana wartość pozostaje przyciskiem, ale sortowanie korzysta bezpośrednio
     # z pola BooleanField modelu: Enabled/Disabled oraz kolejność odwrotna po kliknięciu.
-    enabled = tables.TemplateColumn(
-        template_code=ENABLED_TOGGLE,
-        order_by=("enabled",),
-        orderable=True,
-    )
+    enabled = enabled_toggle_column("devicevmanageconfig_toggle_enabled")
     reachability = tables.Column(verbose_name="Status")
     device_model = tables.Column(verbose_name="Type")
     vmanage_site_name = tables.Column(verbose_name="vManage Site")
@@ -93,7 +98,7 @@ MERAKI_SYNC_BUTTON = """
 
 class DeviceCatalystCenterConfigTable(NetBoxTable):
     hostname = tables.Column(linkify=True, verbose_name="Name")
-    enabled = columns.BooleanColumn()
+    enabled = enabled_toggle_column("devicecatalystcenterconfig_toggle_enabled")
     management_ip = tables.Column(verbose_name="Management IP")
     catalyst_site_name = tables.Column(verbose_name="Catalyst Building")
     netbox_site = tables.Column(linkify=True, verbose_name="NetBox Site")
@@ -117,7 +122,7 @@ class DeviceCatalystCenterConfigTable(NetBoxTable):
 
 class DeviceMerakiConfigTable(NetBoxTable):
     hostname = tables.Column(linkify=True, verbose_name="Name")
-    enabled = columns.BooleanColumn()
+    enabled = enabled_toggle_column("devicemerakiconfig_toggle_enabled")
     network_name = tables.Column(verbose_name="Meraki Network")
     netbox_site = tables.Column(linkify=True, verbose_name="NetBox Site")
     match_method = columns.ChoiceFieldColumn()

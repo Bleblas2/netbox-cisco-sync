@@ -478,26 +478,38 @@ class DeviceVmanageConfigBulkDeleteView(generic.BulkDeleteView):
     table = tables.DeviceVmanageConfigTable
 
 
-@register_model_view(DeviceVmanageConfig, name="toggle_enabled", path="toggle-enabled")
-class DeviceVmanageConfigToggleEnabledView(LoginRequiredMixin, View):
-    """Szybko przełącz pole enabled z listy, bez edytowania mapowania Site."""
+class DeviceConfigToggleEnabledView(LoginRequiredMixin, View):
+    """Wspólna akcja przełączająca synchronizację urządzenia z listy."""
+
+    model = None
+    permission_name = ""
+    source_name = ""
+    list_url_name = ""
 
     def post(self, request, pk):
-        config = get_object_or_404(DeviceVmanageConfig, pk=pk)
-        if not request.user.has_perm("netbox_cisco_sync.change_devicevmanageconfig"):
-            messages.error(request, "You do not have permission to change vManage sync configuration.")
-            return redirect("plugins:netbox_cisco_sync:devicevmanageconfig_list")
+        config = get_object_or_404(self.model, pk=pk)
+        if not request.user.has_perm(self.permission_name):
+            messages.error(request, f"You do not have permission to change {self.source_name} sync configuration.")
+            return redirect(self.list_url_name)
 
         config.enabled = not config.enabled
         config.save(update_fields=("enabled", "last_updated"))
         state = "enabled" if config.enabled else "disabled"
-        messages.success(request, f"vManage sync for {config.hostname} is now {state}.")
+        messages.success(request, f"{self.source_name} sync for {config.hostname} is now {state}.")
 
         # Powrót do Referer zachowuje wyszukiwanie, filtry i numer strony listy.
         return_url = request.META.get("HTTP_REFERER", "")
         if return_url and url_has_allowed_host_and_scheme(return_url, allowed_hosts={request.get_host()}):
             return redirect(return_url)
-        return redirect("plugins:netbox_cisco_sync:devicevmanageconfig_list")
+        return redirect(self.list_url_name)
+
+
+@register_model_view(DeviceVmanageConfig, name="toggle_enabled", path="toggle-enabled")
+class DeviceVmanageConfigToggleEnabledView(DeviceConfigToggleEnabledView):
+    model = DeviceVmanageConfig
+    permission_name = "netbox_cisco_sync.change_devicevmanageconfig"
+    source_name = "vManage"
+    list_url_name = "plugins:netbox_cisco_sync:devicevmanageconfig_list"
 
 
 class DiscoverDevicesView(LoginRequiredMixin, View):
@@ -707,6 +719,14 @@ class DeviceMerakiConfigBulkDeleteView(generic.BulkDeleteView):
     table = tables.DeviceMerakiConfigTable
 
 
+@register_model_view(DeviceMerakiConfig, name="toggle_enabled", path="toggle-enabled")
+class DeviceMerakiConfigToggleEnabledView(DeviceConfigToggleEnabledView):
+    model = DeviceMerakiConfig
+    permission_name = "netbox_cisco_sync.change_devicemerakiconfig"
+    source_name = "Meraki"
+    list_url_name = "plugins:netbox_cisco_sync:devicemerakiconfig_list"
+
+
 class DiscoverMerakiDevicesView(LoginRequiredMixin, View):
     """Ręcznie odśwież inventory z Meraki Dashboard API."""
     def get(self, request):
@@ -880,6 +900,14 @@ class DeviceCatalystCenterConfigBulkDeleteView(generic.BulkDeleteView):
     """Zbiorczo usuń zaznaczone rekordy inventory Catalyst Center."""
     queryset = DeviceCatalystCenterConfig.objects.all()
     table = tables.DeviceCatalystCenterConfigTable
+
+
+@register_model_view(DeviceCatalystCenterConfig, name="toggle_enabled", path="toggle-enabled")
+class DeviceCatalystCenterConfigToggleEnabledView(DeviceConfigToggleEnabledView):
+    model = DeviceCatalystCenterConfig
+    permission_name = "netbox_cisco_sync.change_devicecatalystcenterconfig"
+    source_name = "Catalyst Center"
+    list_url_name = "plugins:netbox_cisco_sync:devicecatalystcenterconfig_list"
 
 
 class DiscoverCatalystDevicesView(LoginRequiredMixin, View):
