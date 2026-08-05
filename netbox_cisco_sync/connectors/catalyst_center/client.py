@@ -64,6 +64,12 @@ class CatalystCenterClient:
                 rows.extend(group.get("response", []))
         return rows
 
+    def get_device_interfaces(self, device_id):
+        """Pobierz interfejsy raportowane dla jednego urządzenia sieciowego."""
+        return self._response(
+            f"/dna/intent/api/v1/interface/network-device/{device_id}"
+        )
+
     def _response(self, path):
         # Endpointy Intent API opakowują właściwą listę w polu ``response``.
         payload = self._json(path)

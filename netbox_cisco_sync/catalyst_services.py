@@ -94,9 +94,8 @@ def collect_catalyst_config(
     settings = settings or CatalystCenterConfig.get()
     base_data = catalyst_inventory_dto(config)
     if force_refresh or not has_interface_cache(config):
-        # Obecny connector CCC udostępnia w Preview tylko Management z danych
-        # Discovery. Pełne porty będzie można podłączyć bez zmiany modelu cache.
-        refresh_interface_cache(config, base_data, settings)
+        collected = CatalystCenterConnector(settings).connect().collect_device(base_data)
+        refresh_interface_cache(config, collected, settings)
         config.refresh_from_db()
     cached = collected_device_from_cache(
         config,

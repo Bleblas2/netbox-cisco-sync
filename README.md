@@ -228,6 +228,7 @@ PLUGINS_CONFIG = {
         "ccc_ignored_interface_patterns": [],
         "ccc_default_platform_name": "Cisco Catalyst Center",
         "ccc_default_platform_slug": "cisco-catalyst-center",
+cat 
         "meraki_site_id_field": "MerakiSiteId",
         "meraki_speed_to_interface_type": {
             100: "100base-tx",
