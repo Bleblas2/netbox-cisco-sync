@@ -2,7 +2,11 @@
 
 from ..base import BaseConnector
 from .client import CatalystCenterClient
-from .collector import collect_inventory, collect_site_memberships
+from .collector import (
+    collect_device_interfaces,
+    collect_inventory,
+    collect_site_memberships,
+)
 
 
 class CatalystCenterConnector(BaseConnector):
@@ -32,6 +36,8 @@ class CatalystCenterConnector(BaseConnector):
         )
 
     def collect_device(self, inventory_device):
-        # Aktualny lekki rekord CCC zawiera komplet danych wspieranych przez
-        # connector. Metoda zachowuje wspólny interfejs dla wszystkich źródeł.
-        return inventory_device
+        self.connect()
+        return collect_device_interfaces(
+            inventory_device,
+            self.client.get_device_interfaces(inventory_device.uuid),
+        )

@@ -8,6 +8,7 @@ from .connectors.meraki import MerakiConnector
 from .dto import CollectedDevice
 from .matcher import match_site
 from .models import DeviceMerakiConfig, MerakiConfig
+from .plugin_settings import plugin_setting
 from .sync.interfaces import filter_collected_data
 from .interface_cache import (
     collected_device_from_cache,
@@ -60,7 +61,8 @@ def meraki_inventory_dto(config):
         latitude=float(config.latitude) if config.latitude is not None else None,
         longitude=float(config.longitude) if config.longitude is not None else None,
         reachability="", role_name=MerakiConfig.get().default_device_role,
-        platform_name="Cisco Meraki", platform_slug="cisco-meraki",
+        platform_name=plugin_setting("meraki_default_platform_name"),
+        platform_slug=plugin_setting("meraki_default_platform_slug"),
         device_type_part_number=config.device_model, source_family=config.product_family,
     )
 

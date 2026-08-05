@@ -12,6 +12,12 @@ from .tags import tag_synced_objects
 
 DEFAULT_PLATFORM_NAME = plugin_setting("vmanage_default_platform_name")
 DEFAULT_PLATFORM_SLUG = plugin_setting("vmanage_default_platform_slug")
+NETBOX_DEVICE_SERIAL_MAX_LENGTH = 50
+
+
+def netbox_device_serial(value):
+    """Skróć źródłowy serial do limitu pola dcim.Device.serial."""
+    return str(value or "")[:NETBOX_DEVICE_SERIAL_MAX_LENGTH]
 
 
 def sync_collected_device(config, data, settings, *, apply=False):
@@ -35,8 +41,11 @@ def sync_collected_device(config, data, settings, *, apply=False):
         site=config.netbox_site,
         name__iexact=data.hostname,
     ).first()
-    if device is None and data.serial_number:
-        serial_match = Device.objects.filter(serial=data.serial_number).first()
+    device_serial = netbox_device_serial(data.serial_number)
+    if len(str(data.serial_number or "")) > NETBOX_DEVICE_SERIAL_MAX_LENGTH:
+        result.warnings.append("Source serial number was truncated to 50 characters for NetBox")
+    if device is None and device_serial:
+        serial_match = Device.objects.filter(serial=device_serial).first()
         if serial_match and serial_match.site_id != config.netbox_site_id:
             result.skipped = True
             result.warnings.append(
@@ -66,7 +75,7 @@ def sync_collected_device(config, data, settings, *, apply=False):
     if device is None:
         device = Device.objects.create(
             name=data.hostname,
-            serial=data.serial_number,
+            serial=device_serial,
             device_type=device_type,
             role=role,
             platform=platform,
@@ -79,7 +88,7 @@ def sync_collected_device(config, data, settings, *, apply=False):
         update_fields(
             device,
             {
-                "serial": data.serial_number,
+                "serial": device_serial,
                 "device_type": device_type,
                 "platform": platform,
                 "status": data.status or "active",
