@@ -22,10 +22,19 @@ def distance_km(lat1, lon1, lat2, lon2):
     return radius * 2 * math.atan2(math.sqrt(value), math.sqrt(1 - value))
 
 
-def match_site(device, sites, max_distance_km=1, *, use_custom_field=True):
-    """Zastosuj kolejno SdwanSiteId, nazwę i GPS; wynik musi być jednoznaczny."""
+def match_site(
+    device,
+    sites,
+    max_distance_km=1,
+    *,
+    use_custom_field=True,
+    custom_field_name=None,
+):
+    """Zastosuj kolejno identyfikator źródła, nazwę i GPS."""
     sites = list(sites)
-    site_id_field = plugin_setting("vmanage_site_id_field")
+    # Platforma wskazuje własne pole identyfikatora. Brak parametru zachowuje
+    # dotychczasowy kontrakt vManage i zgodność ze starszymi wywołaniami.
+    site_id_field = custom_field_name or plugin_setting("vmanage_site_id_field")
     # Puste ID nie może dopasować Site z pustym custom field, bo zablokowałoby
     # poprawne przejście do dopasowania po nazwie albo GPS.
     by_id = [

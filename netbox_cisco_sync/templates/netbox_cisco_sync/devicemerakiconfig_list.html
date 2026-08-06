@@ -16,8 +16,9 @@
       </button>
     </form>
     <a href="{% url 'plugins:netbox_cisco_sync:meraki_bulk_sync' %}" class="btn btn-success">
-      <i class="mdi mdi-sync"></i> Sync and Apply all enabled devices
+      <i class="mdi mdi-check-all"></i> Apply all enabled devices
     </a>
   {% endif %}
   {% include 'netbox_cisco_sync/inc/discovery_overlay.html' with discovery_source_name='Meraki Dashboard' %}
+  {% include 'netbox_cisco_sync/inc/interface_refresh_overlay.html' with interface_source_name='Meraki' %}
 {% endblock %}

@@ -40,8 +40,14 @@ def discover_meraki_devices():
         config.longitude = row.longitude
         config.last_discovered = timezone.now()
         if not config.manual_site_override:
-            # Meraki Network nie ma pola SdwanSiteId; dopasowujemy nazwą, potem GPS.
-            site, method = match_site(row, sites, settings.gps_max_distance_km, use_custom_field=False)
+            # Network ID jest dostępne już w lekkim inventory. Najpierw porównujemy
+            # je z MerakiSiteId, a dopiero później korzystamy z nazwy i GPS.
+            site, method = match_site(
+                row,
+                sites,
+                settings.gps_max_distance_km,
+                custom_field_name=plugin_setting("meraki_site_id_field"),
+            )
             config.netbox_site = site
             config.match_method = method
         elif config.netbox_site_id:
@@ -74,12 +80,15 @@ def collect_meraki_config(
     settings=None,
     include_unselected=False,
     force_refresh=False,
+    refresh_missing=True,
 ):
     """Zwróć Meraki DTO z cache; API odpytaj tylko dla pustego cache lub Refresh."""
     settings = settings or MerakiConfig.get()
     if not settings.enabled:
         raise RuntimeError("Meraki integration is disabled in Settings.")
     base_data = meraki_inventory_dto(config)
+    if not has_interface_cache(config) and not (force_refresh or refresh_missing):
+        raise RuntimeError("Interface cache is empty. Refresh interfaces before Sync and Apply.")
     if force_refresh or not has_interface_cache(config):
         connector = (
             MerakiConnector(settings, client=client)

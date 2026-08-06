@@ -1,20 +1,23 @@
 # NetBox Cisco Sync
 
-NetBox Cisco Sync is a NetBox 4.6 plugin for discovering and synchronizing
-network inventory from Cisco vManage, Cisco Catalyst Center, and Cisco Meraki
-Dashboard.
+NetBox Cisco Sync is a NetBox plugin for discovering and synchronizing network
+inventory from Cisco vManage, Cisco Catalyst Center, and Cisco Meraki
+Dashboard. NetBox 4.6 is the minimum migration baseline; current validation is
+performed on NetBox 6.0.6.
 
-Connections to Cisco platforms are read-only. The plugin applies explicitly
-approved changes to NetBox through a shared workflow:
+Connections to Cisco platforms are read-only. Source collection and NetBox
+changes are deliberately separated through a shared workflow:
 
 ```text
-Discovery → Site mapping → Enable → Preview → Apply → Sync Run → optional Revert
+Discovery → Site mapping → Enable → Refresh interfaces → Preview → Apply → Sync Run → optional Revert
 ```
 
 ![NetBox Cisco Sync workflow](docs/images/netbox-cisco-sync-demo.gif)
 
-> **Release status:** `0.1.0` is under internal validation. Test the plugin in a
-> non-production NetBox environment before deployment.
+> **Current status:** version `0.1.0` supports vManage, Catalyst Center, and
+> Meraki through the complete Discovery/Refresh/Preview/Apply workflow. It has
+> been validated on the local demo environment and the `netbox-prod-test`
+> production copy. Treat it as a pre-release build until it is published.
 
 ## Contents
 
@@ -43,15 +46,18 @@ Discovery → Site mapping → Enable → Preview → Apply → Sync Run → opt
 - Stores every Preview and Apply as a Sync Run with counters, warnings, source
   data, created objects, and field-level changes.
 - Reverts only objects recorded as created by a selected Apply run.
-- Supports single-device and bulk synchronization through NetBox workers.
+- Supports single-device Apply, background bulk Apply, and background interface
+  refresh for selected devices through NetBox workers.
 
 ## Safety Model
 
 - Cisco APIs are used only for authentication and read operations.
 - Newly discovered devices are disabled by default.
 - Preview never writes Device, Interface, IP, MAC, or FHRP objects to NetBox.
-- Apply uses the stored Preview snapshot instead of silently collecting a
-  different data set.
+- Apply uses the local interface cache or the explicitly submitted Preview
+  snapshot and never silently refreshes source interfaces.
+- Bulk Apply fails an individual device safely when its interface cache is
+  missing and continues with the remaining devices.
 - Existing NetBox devices are skipped unless **Update existing** is enabled.
 - Discovery and Apply never remove devices missing from a Cisco platform.
 - Revert removes only objects created and recorded by the selected Sync Run.
@@ -92,21 +98,22 @@ platform-specific sequence:
 |---|---|
 | vManage | `SdwanSiteId` custom field → normalized Site name → nearest unique GPS match |
 | Catalyst Center | normalized Building/Site name → nearest unique GPS match |
-| Meraki Dashboard | normalized Network/Site name → nearest unique GPS match |
+| Meraki Dashboard | `MerakiSiteId` custom field → normalized Network/Site name → nearest unique GPS match |
 
 Name matching replaces `_` and `-` with spaces, collapses whitespace, and
 compares values case-insensitively. GPS matching succeeds only when the nearest
 Site is unique and within the configured distance. Ambiguous devices remain
 unmatched for manual review.
 
-Meraki Apply can store the Dashboard Network ID in the Site custom field
-`MerakiSiteId`. vManage can store its Site ID in `SdwanSiteId`.
+Meraki Discovery compares the Dashboard Network ID with `MerakiSiteId`, which
+is also maintained during Apply. vManage uses `SdwanSiteId`. The identifiers
+are platform-specific and must not be interchanged.
 
 ## Installation
 
 ### Requirements
 
-- NetBox 4.6;
+- NetBox 4.6 or a later compatible release (currently validated on 6.0.6);
 - Python supported by the selected NetBox release;
 - a NetBox worker for queued and scheduled synchronization;
 - read-only API credentials for each enabled Cisco platform.
@@ -228,7 +235,6 @@ PLUGINS_CONFIG = {
         "ccc_ignored_interface_patterns": [],
         "ccc_default_platform_name": "Cisco Catalyst Center",
         "ccc_default_platform_slug": "cisco-catalyst-center",
-cat 
         "meraki_site_id_field": "MerakiSiteId",
         "meraki_speed_to_interface_type": {
             100: "100base-tx",
@@ -252,27 +258,32 @@ cat
 3. Open **Discovered Devices** and select the same platform tab.
 4. Run **Discover from ...**.
 5. Review automatic Site matches and set manual overrides where necessary.
-6. Open a discovered device, refresh its interface data, select interfaces, and
-   save.
-7. Enable the device and inspect Preview.
-8. Apply the stored snapshot.
+6. Select one or more devices and use **Refresh interfaces for selected
+   devices**, or refresh a single device from its Edit/Preview page.
+7. Open the device, select interfaces, save the selection, and enable it.
+8. Inspect Preview and Apply the stored snapshot.
 9. Verify the resulting NetBox objects and Sync Run.
-10. After validating individual devices, use
-    **Sync and Apply all enabled devices**.
+10. After validating individual devices, use **Apply all enabled devices**.
 
 For Catalyst Center, create NetBox Device Types whose `part_number` matches the
 source `platformId` before Apply.
 
 ## Interface Cache and Selection
 
-The first visit to a discovered device collects interface details from the
-source API and stores them in `DiscoveredInterface`. Later Save, Preview, Apply,
-and scheduled jobs use this local cache.
+Interface details are collected explicitly and stored in
+`DiscoveredInterface`. Save, Preview, Apply, bulk Apply, and scheduled jobs use
+this local cache.
 
-The API is queried again only when:
+The source API is queried for interface details only when:
 
-- no cached interface data exists; or
-- the operator explicitly selects **Refresh / ReSync**.
+- the operator explicitly selects **Refresh / ReSync** on one device; or
+- the operator selects devices in a platform list and chooses
+  **Refresh interfaces for selected devices**.
+
+**Apply all enabled devices** never refreshes interfaces. It applies the
+current cache for enabled devices with a mapped Site. Discovery refreshes only
+the lightweight device inventory and Site mapping inputs; it does not replace
+the interface refresh step.
 
 Each interface is displayed with a checkbox. Rules in
 `*_ignored_interface_names` and `*_ignored_interface_patterns` do not hide or
@@ -303,6 +314,7 @@ The plugin uses read-only API flows including:
 - `GET /dna/intent/api/v1/network-device`
 - `GET /dna/intent/api/v1/site`
 - `GET /dna/intent/api/v1/membership/<site-id>`
+- `GET /dna/intent/api/v1/interface/network-device/<device-id>`
 
 ### Meraki Dashboard
 
@@ -344,11 +356,15 @@ Important modules:
 - `sync/sites.py` — platform-specific Site identifiers;
 - `interface_cache.py` — relational source-interface cache;
 - `jobs.py` — bulk and scheduled work;
-- `models.py` — Settings, discovery inventory, cache, and audit history.
+- `models.py` — Settings, discovery inventory, cache, and audit history;
+- `views.py` — stable public exports used by URL configuration;
+- `view_modules/` — shared, platform, Settings, and Sync Run views split by
+  responsibility.
 
 ### Tested with
 
-- NetBox `4.6.3-Docker-5.0.1`;
+- NetBox `6.0.6` on `netbox-prod-test` (with migrations pinned for minimum
+  compatibility with NetBox 4.6);
 - Python `3.14.4`;
 - Docker Desktop with WSL2;
 - Cisco vManage sandbox;

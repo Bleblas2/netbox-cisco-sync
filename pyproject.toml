@@ -29,5 +29,6 @@ include = ["netbox_cisco_sync*"]
 [tool.setuptools.package-data]
 netbox_cisco_sync = [
     "templates/netbox_cisco_sync/*.html",
+    "templates/netbox_cisco_sync/buttons/*.html",
     "templates/netbox_cisco_sync/inc/*.html",
 ]
