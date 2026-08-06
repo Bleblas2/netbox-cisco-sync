@@ -14,8 +14,34 @@
       </button>
     </form>
     <a href="{% url 'plugins:netbox_cisco_sync:catalyst_bulk_sync' %}" class="btn btn-success">
-      <i class="mdi mdi-sync"></i> Sync and Apply all enabled devices
+      <i class="mdi mdi-check-all"></i> Apply all enabled devices
     </a>
   {% endif %}
   {% include 'netbox_cisco_sync/inc/discovery_overlay.html' with discovery_source_name='Catalyst Center' %}
+  <div
+    id="interface-refresh-overlay"
+    class="position-fixed top-0 start-0 w-100 h-100 align-items-center justify-content-center"
+    style="display: none; z-index: 2000; background: rgba(0, 0, 0, 0.55);"
+  >
+    <div class="card shadow">
+      <div class="card-body text-center p-4">
+        <div class="spinner-border text-primary mb-3" role="status">
+          <span class="visually-hidden">Loading…</span>
+        </div>
+        <div class="h5 mb-1">Queueing Catalyst Center interface refresh…</div>
+        <div class="text-muted">No changes will be applied to NetBox devices.</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    document.addEventListener("submit", function (event) {
+      // Overlay pokazujemy dopiero dla faktycznie wysyłanego formularza.
+      // Nie wyłączamy submittera przed odczytaniem jego ``formaction``, ponieważ
+      // przeglądarka pominęłaby wtedy akcję i pozostawiła spinner bez końca.
+      const button = event.submitter;
+      if (button && button.classList.contains("catalyst-interface-refresh-button")) {
+        document.getElementById("interface-refresh-overlay").style.display = "flex";
+      }
+    });
+  </script>
 {% endblock %}

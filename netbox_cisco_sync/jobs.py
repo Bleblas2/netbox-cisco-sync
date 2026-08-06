@@ -29,8 +29,11 @@ from .models import (
 from .services import collect_config_details, discover_devices
 
 BULK_JOB_NAME = "Bulk vManage Sync and Apply"
+VMANAGE_INTERFACE_REFRESH_JOB_NAME = "Bulk vManage Interface Refresh"
 CATALYST_BULK_JOB_NAME = "Bulk Catalyst Center Sync and Apply"
+CATALYST_INTERFACE_REFRESH_JOB_NAME = "Bulk Catalyst Center Interface Refresh"
 MERAKI_BULK_JOB_NAME = "Bulk Meraki Sync and Apply"
+MERAKI_INTERFACE_REFRESH_JOB_NAME = "Bulk Meraki Interface Refresh"
 SCHEDULED_JOB_NAME = "Scheduled vManage Sync"
 ACTIVE_JOB_STATUSES = ("pending", "scheduled", "running")
 SCHEDULED_JOB_BLOCKING_STATUSES = ("running",)
@@ -50,7 +53,9 @@ def apply_config(config, settings, client, trigger, logger=None):
     """Zastosuj jeden Edge atomowo i zawsze zapisz osobny wynik Sync Run."""
     data = None
     try:
-        data = collect_config_details(config, client=client, settings=settings)
+        data = collect_config_details(
+            config, client=client, settings=settings, refresh_missing=False,
+        )
         with transaction.atomic():
             result, device = sync_collected_device(config, data, settings, apply=True)
             run = SyncRun.objects.create(
@@ -110,8 +115,15 @@ def enabled_catalyst_configs(settings=None):
 
 def apply_catalyst_config(config, settings, trigger, logger=None):
     """Zastosuj jeden lokalny snapshot CCC i zapisz audytowy Sync Run."""
-    data = collect_catalyst_config(config)
+    data = None
     try:
+        # Apply celowo nie odpytuje kontrolera. Odczyt interfejsów jest osobną,
+        # świadomą akcją użytkownika wykonywaną przed zatwierdzeniem snapshotu.
+        data = collect_catalyst_config(
+            config,
+            settings=settings,
+            refresh_missing=False,
+        )
         with transaction.atomic():
             result, device = sync_collected_device(config, data, settings, apply=True)
             run = SyncRun.objects.create(
@@ -135,7 +147,8 @@ def apply_catalyst_config(config, settings, trigger, logger=None):
     except Exception as exc:  # noqa: BLE001 - błąd urządzenia nie zatrzymuje serii.
         SyncRun.objects.create(
             catalyst_config=config, trigger=trigger, mode=SyncModeChoices.APPLY,
-            status=SyncStatusChoices.FAILED, message=str(exc), source_data=data.to_dict(),
+            status=SyncStatusChoices.FAILED, message=str(exc),
+            source_data=data.to_dict() if data is not None else {},
         )
         if logger:
             logger.error(f"{config}: {exc}")
@@ -161,7 +174,9 @@ def apply_meraki_config(config, settings, client, trigger, logger=None):
     """Zastosuj jeden snapshot Meraki i zapisz audytowy Sync Run."""
     data = None
     try:
-        data = collect_meraki_config(config, client=client, settings=settings)
+        data = collect_meraki_config(
+            config, client=client, settings=settings, refresh_missing=False,
+        )
         with transaction.atomic():
             result, device = sync_collected_device(config, data, settings, apply=True)
             run = SyncRun.objects.create(
@@ -210,11 +225,8 @@ class BulkVmanageSyncJob(JobRunner):
             self.logger.info(message)
             return message
 
-        # Sesję źródłową otwieramy tylko wtedy, gdy co najmniej jedno urządzenie
-        # nie ma jeszcze cache. Pozostałe Apply pracują wyłącznie na bazie.
+        # Masowy Apply korzysta wyłącznie z wcześniej zatwierdzonego cache.
         client = None
-        if configs.filter(interfaces_last_refreshed__isnull=True).exists():
-            client = VmanageConnector(settings).connect().client
         counts = {
             SyncStatusChoices.OK: 0,
             SyncStatusChoices.SKIPPED: 0,
@@ -233,6 +245,21 @@ class BulkVmanageSyncJob(JobRunner):
         message = bulk_result_message(total, counts)
         self.logger.info(message)
         return message
+
+
+class BulkVmanageInterfaceRefreshJob(JobRunner):
+    """Odśwież cache zaznaczonych urządzeń vManage bez wykonywania Apply."""
+
+    class Meta:
+        name = VMANAGE_INTERFACE_REFRESH_JOB_NAME
+
+    def run(self, *args, **kwargs):
+        settings = VmanageSyncConfig.get()
+        configs = DeviceVmanageConfig.objects.filter(pk__in=kwargs.get("config_ids", [])).order_by("hostname")
+        return refresh_interface_configs(
+            self, "vManage", configs,
+            lambda config: collect_config_details(config, settings=settings, include_unselected=True, force_refresh=True),
+        )
 
 
 class BulkCatalystCenterSyncJob(JobRunner):
@@ -261,6 +288,44 @@ class BulkCatalystCenterSyncJob(JobRunner):
         return message
 
 
+class BulkCatalystCenterInterfaceRefreshJob(JobRunner):
+    """Odśwież cache interfejsów zaznaczonych urządzeń bez wykonywania Apply."""
+
+    class Meta:
+        name = CATALYST_INTERFACE_REFRESH_JOB_NAME
+
+    def run(self, *args, **kwargs):
+        settings = CatalystCenterConfig.get()
+        if not settings.enabled:
+            message = "Catalyst Center integration is disabled in Settings."
+            self.logger.info(message)
+            return message
+        config_ids = kwargs.get("config_ids") or []
+        configs = DeviceCatalystCenterConfig.objects.filter(pk__in=config_ids).order_by(
+            "hostname", "management_ip"
+        )
+        total = configs.count()
+        refreshed = failed = 0
+        for config in configs.iterator():
+            try:
+                collect_catalyst_config(
+                    config,
+                    settings=settings,
+                    include_unselected=True,
+                    force_refresh=True,
+                )
+                refreshed += 1
+            except Exception as exc:  # noqa: BLE001 - awaria jednego urządzenia nie zatrzymuje serii.
+                failed += 1
+                self.logger.error(f"{config}: {exc}")
+        message = (
+            f"Catalyst Center interface refresh finished: {total} selected, "
+            f"{refreshed} refreshed, {failed} failed. No changes were applied to NetBox devices."
+        )
+        self.logger.info(message)
+        return message
+
+
 class BulkMerakiSyncJob(JobRunner):
     """Ręczny Apply wszystkich włączonych urządzeń Meraki Dashboard."""
 
@@ -276,8 +341,6 @@ class BulkMerakiSyncJob(JobRunner):
         configs = enabled_meraki_configs(settings)
         total = configs.count()
         client = None
-        if configs.filter(interfaces_last_refreshed__isnull=True).exists():
-            client = MerakiConnector(settings).connect().client
         counts = {SyncStatusChoices.OK: 0, SyncStatusChoices.SKIPPED: 0, SyncStatusChoices.FAILED: 0}
         for config in configs.iterator():
             status = apply_meraki_config(config, settings, client, SyncTriggerChoices.MANUAL, self.logger)
@@ -285,6 +348,40 @@ class BulkMerakiSyncJob(JobRunner):
         message = source_bulk_result_message("Meraki", total, counts)
         self.logger.info(message)
         return message
+
+
+class BulkMerakiInterfaceRefreshJob(JobRunner):
+    """Odśwież cache zaznaczonych urządzeń Meraki bez wykonywania Apply."""
+
+    class Meta:
+        name = MERAKI_INTERFACE_REFRESH_JOB_NAME
+
+    def run(self, *args, **kwargs):
+        settings = MerakiConfig.get()
+        configs = DeviceMerakiConfig.objects.filter(pk__in=kwargs.get("config_ids", [])).order_by("hostname")
+        return refresh_interface_configs(
+            self, "Meraki", configs,
+            lambda config: collect_meraki_config(config, settings=settings, include_unselected=True, force_refresh=True),
+        )
+
+
+def refresh_interface_configs(job, source_name, configs, collector):
+    """Wspólnie odśwież zaznaczone cache i nie przerywaj serii po jednym błędzie."""
+    total = configs.count()
+    refreshed = failed = 0
+    for config in configs.iterator():
+        try:
+            collector(config)
+            refreshed += 1
+        except Exception as exc:  # noqa: BLE001 - błąd jednego urządzenia nie zatrzymuje serii.
+            failed += 1
+            job.logger.error(f"{config}: {exc}")
+    message = (
+        f"{source_name} interface refresh finished: {total} selected, "
+        f"{refreshed} refreshed, {failed} failed. No changes were applied to NetBox devices."
+    )
+    job.logger.info(message)
+    return message
 
 
 def bulk_result_message(total, counts):

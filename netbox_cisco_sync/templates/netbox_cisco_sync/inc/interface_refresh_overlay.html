@@ -1,0 +1,16 @@
+<div id="interface-refresh-overlay" class="position-fixed top-0 start-0 w-100 h-100 align-items-center justify-content-center" style="display: none; z-index: 2000; background: rgba(0, 0, 0, 0.55);">
+  <div class="card shadow"><div class="card-body text-center p-4">
+    <div class="spinner-border text-primary mb-3" role="status"><span class="visually-hidden">Loading…</span></div>
+    <div class="h5 mb-1">Queueing {{ interface_source_name }} interface refresh…</div>
+    <div class="text-muted">No changes will be applied to NetBox devices.</div>
+  </div></div>
+</div>
+<script>
+  document.addEventListener("submit", function (event) {
+    // Spinner nie może wyłączyć przycisku przed odczytaniem jego formaction.
+    const button = event.submitter;
+    if (button && button.classList.contains("catalyst-interface-refresh-button")) {
+      document.getElementById("interface-refresh-overlay").style.display = "flex";
+    }
+  });
+</script>

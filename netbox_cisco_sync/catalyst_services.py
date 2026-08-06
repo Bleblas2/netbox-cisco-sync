@@ -87,12 +87,17 @@ def collect_catalyst_config(
     settings=None,
     include_unselected=False,
     force_refresh=False,
+    refresh_missing=True,
 ):
     """Zwróć Catalyst DTO z cache zarządzanego przez wspólny interfejs Refresh."""
     from .sync.interfaces import filter_collected_data
 
     settings = settings or CatalystCenterConfig.get()
     base_data = catalyst_inventory_dto(config)
+    if not has_interface_cache(config) and not (force_refresh or refresh_missing):
+        raise RuntimeError(
+            "Interface cache is empty. Refresh interfaces before Sync and Apply."
+        )
     if force_refresh or not has_interface_cache(config):
         collected = CatalystCenterConnector(settings).connect().collect_device(base_data)
         refresh_interface_cache(config, collected, settings)

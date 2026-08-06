@@ -88,6 +88,7 @@ def collect_config_details(
     settings=None,
     include_unselected=False,
     force_refresh=False,
+    refresh_missing=True,
 ):
     """Zwróć vManage DTO z cache; API odpytaj tylko dla pustego cache lub Refresh."""
     from .sync.interfaces import filter_collected_data
@@ -96,6 +97,9 @@ def collect_config_details(
     if not settings.enabled:
         raise RuntimeError("vManage integration is disabled in Settings.")
     device = vmanage_inventory_dto(config)
+
+    if not has_interface_cache(config) and not (force_refresh or refresh_missing):
+        raise RuntimeError("Interface cache is empty. Refresh interfaces before Sync and Apply.")
 
     if force_refresh or not has_interface_cache(config):
         connector = (
