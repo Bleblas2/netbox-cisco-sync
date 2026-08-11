@@ -57,14 +57,15 @@ def collect_device_details(device, client):
     elif device.source_family == "MX":
         raw = client.get_device(device.serial_number)
         # Nazwy i zachowanie odpowiadają sprawdzonej integracji referencyjnej.
-        for name, description, address in (
-            ("WAN 1", "WAN 1 uplink", raw.get("wan1Ip")),
-            ("WAN 2", "WAN 2 uplink", raw.get("wan2Ip")),
+        for name, description, label, address in (
+            ("Internet 1", "WAN 1 uplink", "WAN1", raw.get("wan1Ip")),
+            ("Internet 2", "WAN 2 uplink", "WAN2", raw.get("wan2Ip")),
         ):
             if address:
                 interfaces.append(CollectedInterface(
                     name=name,
                     description=description,
+                    label=label,
                     interface_type=family_types.get("MX", "1000base-t"),
                     admin_up=True,
                     oper_up=True,
@@ -93,7 +94,7 @@ def collect_device_details(device, client):
             ))
             interfaces.extend(
                 CollectedInterface(
-                    name=f"port{port_number}",
+                    name=f"Port {port_number}",
                     description="Meraki MX single LAN member",
                     interface_type=family_types.get("MX", "1000base-t"),
                     admin_up=True,

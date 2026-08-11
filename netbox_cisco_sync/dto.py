@@ -8,6 +8,7 @@ class CollectedInterface:
     """Znormalizowany interfejs niezależny od różnic między platformami vManage."""
     name: str
     description: str = ""
+    label: str = ""
     interface_type: str = ""
     admin_up: bool = True
     oper_up: bool = False
@@ -18,7 +19,6 @@ class CollectedInterface:
     mtu: int | None = None
     speed_mbps: float | None = None
     vpn_id: str = ""
-    stack_member_position: int | None = None
     mode: str = ""
     untagged_vlan: int | None = None
     tagged_vlans: list[int] = field(default_factory=list)
@@ -41,15 +41,6 @@ class CollectedVrrp:
     master_ip: str = ""
     virtual_mac: str = ""
     priority: int | None = None
-
-
-@dataclass
-class CollectedStackMember:
-    """Sprzętowy członek stacka Catalyst Center w kolejności VC."""
-
-    position: int
-    serial_number: str
-    model: str
 
 
 @dataclass
@@ -76,7 +67,6 @@ class CollectedDevice:
     status: str = "active"
     source_role: str = ""
     source_family: str = ""
-    stack_members: list[CollectedStackMember] = field(default_factory=list)
 
     def to_dict(self):
         # Snapshot zawiera wyłącznie proste typy JSON, więc może być bezpiecznie zapisany
@@ -89,7 +79,4 @@ def device_from_dict(value):
     payload = dict(value)
     payload["interfaces"] = [CollectedInterface(**row) for row in payload.get("interfaces", [])]
     payload["vrrp_groups"] = [CollectedVrrp(**row) for row in payload.get("vrrp_groups", [])]
-    payload["stack_members"] = [
-        CollectedStackMember(**row) for row in payload.get("stack_members", [])
-    ]
     return CollectedDevice(**payload)

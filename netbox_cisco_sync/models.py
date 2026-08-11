@@ -168,14 +168,6 @@ class CatalystCenterConfig(NetBoxModel):
         help_text="Enable the Catalyst Center integration, discovery, and scheduled synchronization.",
     )
     update_existing = models.BooleanField(default=False)
-    stack_detailed = models.BooleanField(
-        "Detailed stack representation",
-        default=False,
-        help_text=(
-            "Represent every Catalyst Center switch stack member as a separate NetBox Device "
-            "in a Virtual Chassis. When disabled, preserve the stack as one Device."
-        ),
-    )
     sync_interfaces = models.BooleanField(default=True)
     ignore_disabled_interfaces = models.BooleanField(
         default=False,
@@ -274,7 +266,6 @@ class DeviceCatalystCenterConfig(NetBoxModel):
         help_text="Per-interface synchronization choices keyed by normalized interface name.",
     )
     interfaces_last_refreshed = models.DateTimeField(null=True, blank=True)
-    interfaces_stack_detailed = models.BooleanField(default=False)
     cached_vrrp_groups = models.JSONField(default=list, blank=True)
     last_discovered = models.DateTimeField(null=True, blank=True)
     last_sync_at = models.DateTimeField(null=True, blank=True)
@@ -298,40 +289,6 @@ class DeviceCatalystCenterConfig(NetBoxModel):
             "plugins:netbox_cisco_sync:devicecatalystcenterconfig_edit",
             args=[self.pk],
         )
-
-
-class CatalystStackMember(models.Model):
-    """Członek stacka zapisany lokalnie dla Preview i Apply bez odczytu CCC."""
-
-    catalyst_config = models.ForeignKey(
-        DeviceCatalystCenterConfig,
-        on_delete=models.CASCADE,
-        related_name="stack_members",
-    )
-    position = models.PositiveSmallIntegerField()
-    serial_number = models.CharField(max_length=100)
-    device_model = models.CharField(max_length=100)
-    device = models.ForeignKey(
-        to="dcim.Device",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="catalyst_stack_members",
-    )
-    present = models.BooleanField(default=True)
-
-    class Meta:
-        ordering = ("catalyst_config", "position")
-        constraints = (
-            models.UniqueConstraint(
-                fields=("catalyst_config", "position"),
-                name="cisco_sync_unique_catalyst_stack_position",
-            ),
-        )
-
-    def __str__(self):
-        return f"{self.catalyst_config.hostname} member {self.position} ({self.serial_number})"
-
 
 class MerakiConfig(NetBoxModel):
     """Ustawienia połączenia i synchronizacji Cisco Meraki Dashboard."""
@@ -467,6 +424,7 @@ class DiscoveredInterface(NetBoxModel):
     name = models.CharField(max_length=255)
     normalized_name = models.CharField(max_length=255)
     description = models.CharField(max_length=500, blank=True)
+    label = models.CharField(max_length=255, blank=True)
     interface_type = models.CharField(max_length=50, blank=True)
     admin_up = models.BooleanField(default=True)
     oper_up = models.BooleanField(default=False)
@@ -477,7 +435,6 @@ class DiscoveredInterface(NetBoxModel):
     mtu = models.PositiveIntegerField(null=True, blank=True)
     speed_mbps = models.FloatField(null=True, blank=True)
     vpn_id = models.CharField(max_length=100, blank=True)
-    stack_member_position = models.PositiveSmallIntegerField(null=True, blank=True)
     mode = models.CharField(max_length=30, blank=True)
     untagged_vlan = models.PositiveIntegerField(null=True, blank=True)
     tagged_vlans = models.JSONField(default=list, blank=True)

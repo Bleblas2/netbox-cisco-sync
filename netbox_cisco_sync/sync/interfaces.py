@@ -48,6 +48,9 @@ def sync_interfaces(device, rows, settings, result, config=None):
     )
     for row in ordered:
         interface = Interface.objects.filter(device=device, name=row.name).first()
+        legacy_name = _legacy_meraki_interface_name(row.name, settings)
+        if interface is None and legacy_name:
+            interface = Interface.objects.filter(device=device, name=legacy_name).first()
         parent_name = row.name.rsplit(".", 1)[0] if "." in row.name else ""
         parent = (
             interfaces.get(parent_name)
@@ -71,8 +74,11 @@ def sync_interfaces(device, rows, settings, result, config=None):
             "type": interface_type(row, settings),
             "enabled": row.admin_up,
             "description": row.description,
+            "label": row.label,
             "mtu": row.mtu,
         }
+        if interface is not None and interface.name != row.name:
+            values["name"] = row.name
         if row.mode in {"access", "trunk"}:
             values["mode"] = "access" if row.mode == "access" else "tagged"
         if parent:
@@ -91,6 +97,23 @@ def sync_interfaces(device, rows, settings, result, config=None):
         if settings.sync_mac_addresses and valid_mac(row.mac_address):
             sync_mac(interface, row.mac_address, result)
     return interfaces
+
+
+def _legacy_meraki_interface_name(name, settings):
+    """Znajdź nazwę zapisaną przed ujednoliceniem z Device Type Library."""
+    if settings is None or settings.__class__.__name__ != "MerakiConfig":
+        return ""
+    normalized = str(name or "").casefold()
+    aliases = {
+        "internet 1": "WAN 1",
+        "internet 2": "WAN 2",
+        "singlelan": "SingleLan",
+        "port 2": "port2",
+        "port 3": "port3",
+        "port 4": "port4",
+        "port 5": "port5",
+    }
+    return aliases.get(normalized, "")
 
 
 def syncable_interface_rows(rows, settings, config=None, selected_names=None):
