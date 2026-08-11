@@ -1,5 +1,6 @@
 """Application services for Catalyst Center discovery and collection."""
 
+from django.db import transaction
 from django.utils import timezone
 
 from dcim.models import Site
@@ -7,8 +8,9 @@ from dcim.models import Site
 from .choices import MatchMethodChoices
 from .connectors.catalyst_center import CatalystCenterConnector
 from .connectors.catalyst_center.collector import parse_device
+from .dto import CollectedStackMember
 from .matcher import match_site
-from .models import CatalystCenterConfig, DeviceCatalystCenterConfig
+from .models import CatalystCenterConfig, CatalystStackMember, DeviceCatalystCenterConfig
 from .interface_cache import (
     collected_device_from_cache,
     has_interface_cache,
@@ -54,6 +56,7 @@ def discover_catalyst_devices():
         elif config.netbox_site_id:
             config.match_method = MatchMethodChoices.MANUAL
         config.save()
+        _refresh_stack_members(config, row.stack_members)
         created += int(is_new)
         updated += int(not is_new)
     return {"seen": len(devices), "created": created, "updated": updated}
@@ -61,7 +64,7 @@ def discover_catalyst_devices():
 
 def catalyst_inventory_dto(config):
     """Odtwórz podstawowe DTO Catalyst Center zapisane podczas Discovery."""
-    return parse_device(
+    data = parse_device(
         {
             "id": config.catalyst_id,
             "hostname": config.hostname,
@@ -79,6 +82,34 @@ def catalyst_inventory_dto(config):
             "longitude": float(config.longitude) if config.longitude is not None else None,
         },
     )
+    cached_members = [
+        {
+            "position": member.position,
+            "serial_number": member.serial_number,
+            "model": member.device_model,
+        }
+        for member in config.stack_members.filter(present=True).order_by("position")
+    ]
+    if cached_members:
+        data.stack_members = [CollectedStackMember(**row) for row in cached_members]
+    return data
+
+
+def _refresh_stack_members(config, members):
+    """Odśwież lokalny skład stacka, zachowując powiązania z Device."""
+    seen = set()
+    for member in members:
+        seen.add(member.position)
+        CatalystStackMember.objects.update_or_create(
+            catalyst_config=config,
+            position=member.position,
+            defaults={
+                "serial_number": member.serial_number,
+                "device_model": member.model,
+                "present": True,
+            },
+        )
+    config.stack_members.exclude(position__in=seen).update(present=False)
 
 
 def collect_catalyst_config(
@@ -94,13 +125,24 @@ def collect_catalyst_config(
 
     settings = settings or CatalystCenterConfig.get()
     base_data = catalyst_inventory_dto(config)
+    cache_mode_changed = (
+        has_interface_cache(config)
+        and config.interfaces_stack_detailed != bool(settings.stack_detailed)
+    )
+    if cache_mode_changed and not force_refresh:
+        raise RuntimeError(
+            "Catalyst stack representation changed. Refresh interfaces before Preview or Apply."
+        )
     if not has_interface_cache(config) and not (force_refresh or refresh_missing):
         raise RuntimeError(
             "Interface cache is empty. Refresh interfaces before Sync and Apply."
         )
     if force_refresh or not has_interface_cache(config):
         collected = CatalystCenterConnector(settings).connect().collect_device(base_data)
-        refresh_interface_cache(config, collected, settings)
+        with transaction.atomic():
+            _refresh_stack_members(config, collected.stack_members)
+            refresh_interface_cache(config, collected, settings)
+        base_data.stack_members = list(collected.stack_members)
         config.refresh_from_db()
     cached = collected_device_from_cache(
         config,

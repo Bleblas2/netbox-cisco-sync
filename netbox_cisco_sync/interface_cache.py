@@ -82,6 +82,11 @@ def refresh_interface_cache(config, data, settings):
             "mtu": source_row.mtu,
             "speed_mbps": speed_mbps,
             "vpn_id": source_row.vpn_id,
+            "stack_member_position": source_row.stack_member_position,
+            "mode": source_row.mode,
+            "untagged_vlan": source_row.untagged_vlan,
+            "tagged_vlans": list(source_row.tagged_vlans or []),
+            "bridge_name": source_row.bridge_name,
             "selected": selected,
             "present": True,
             "last_seen": now,
@@ -101,6 +106,8 @@ def refresh_interface_cache(config, data, settings):
         normalized_name__in=seen,
     ).update(present=False)
     config.interfaces_last_refreshed = now
+    if isinstance(config, DeviceCatalystCenterConfig):
+        config.interfaces_stack_detailed = bool(settings.stack_detailed)
     config.cached_vrrp_groups = [
         {
             "interface_name": row.interface_name,
@@ -113,13 +120,14 @@ def refresh_interface_cache(config, data, settings):
         }
         for row in data.vrrp_groups
     ]
-    config.save(
-        update_fields=(
-            "interfaces_last_refreshed",
-            "cached_vrrp_groups",
-            "last_updated",
-        )
-    )
+    update_fields = [
+        "interfaces_last_refreshed",
+        "cached_vrrp_groups",
+        "last_updated",
+    ]
+    if isinstance(config, DeviceCatalystCenterConfig):
+        update_fields.append("interfaces_stack_detailed")
+    config.save(update_fields=update_fields)
 
 
 def collected_device_from_cache(
@@ -165,6 +173,11 @@ def collected_device_from_cache(
             mtu=row.mtu,
             speed_mbps=row.speed_mbps,
             vpn_id=row.vpn_id,
+            stack_member_position=row.stack_member_position,
+            mode=row.mode,
+            untagged_vlan=row.untagged_vlan,
+            tagged_vlans=list(row.tagged_vlans or []),
+            bridge_name=row.bridge_name,
             selected=row.selected,
             present=row.present,
             last_seen=row.last_seen.isoformat() if row.last_seen else "",

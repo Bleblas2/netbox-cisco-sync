@@ -70,6 +70,12 @@ class CatalystCenterClient:
             f"/dna/intent/api/v1/interface/network-device/{device_id}"
         )
 
+    def get_device_chassis(self, device_id):
+        """Pobierz fizyczne chassis, z których CCC buduje logiczny stack."""
+        return self._response(
+            f"/dna/intent/api/v1/network-device/{device_id}/equipment?type=Chassis"
+        )
+
     def _response(self, path):
         # Endpointy Intent API opakowują właściwą listę w polu ``response``.
         payload = self._json(path)

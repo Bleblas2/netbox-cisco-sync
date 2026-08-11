@@ -48,7 +48,7 @@ class DeviceCatalystCenterConfigSerializer(NetBoxModelSerializer):
             "serial_number", "device_model", "catalyst_site_id", "catalyst_site_name",
             "latitude", "longitude", "reachability", "catalyst_role", "catalyst_family", "netbox_site", "device",
             "match_method", "manual_site_override", "enabled",
-            "interface_selection", "interfaces_last_refreshed", "last_discovered",
+            "interface_selection", "interfaces_last_refreshed", "interfaces_stack_detailed", "last_discovered",
             "last_sync_at", "last_sync_status", "last_sync_message", "tags", "custom_fields",
             "created", "last_updated",
         )
@@ -84,6 +84,8 @@ class DiscoveredInterfaceSerializer(NetBoxModelSerializer):
             "interface_type", "admin_up", "oper_up", "mac_address",
             "ipv4_address", "ipv4_mask", "ipv6_addresses", "mtu",
             "speed_mbps", "vpn_id", "selected", "present", "last_seen",
+            "stack_member_position", "mode", "untagged_vlan", "tagged_vlans",
+            "bridge_name",
             "tags", "custom_fields", "created", "last_updated",
         )
         brief_fields = ("id", "url", "display", "name", "selected", "present")
@@ -136,6 +138,7 @@ class CatalystCenterConfigSerializer(NetBoxModelSerializer):
         fields = (
             "id", "url", "display", "base_url", "username", "password", "verify_ssl",
             "ca_bundle", "request_timeout", "request_retries", "enabled", "update_existing",
+            "stack_detailed",
             "sync_interfaces", "ignore_disabled_interfaces", "sync_ipv4", "sync_ipv6",
             "sync_mac_addresses", "set_primary_ips", "preferred_primary_ipv4_interface",
             "import_device_roles", "sync_fhrp", "default_device_role", "sync_interval_hours",

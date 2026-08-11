@@ -45,6 +45,10 @@ class CombinedDeviceSyncEditView(LoginRequiredMixin, View):
     def collect_full_data(self, config, settings, *, force_refresh=False):
         raise NotImplementedError
 
+    def interface_cache_requires_refresh(self, config, settings):
+        """Rozpoznaj brak lub platformową niezgodność lokalnego cache."""
+        return not has_interface_cache(config)
+
     def config_run_filter(self, config):
         return {self.run_field: config}
 
@@ -146,7 +150,7 @@ class CombinedDeviceSyncEditView(LoginRequiredMixin, View):
             )
             return redirect(self.list_url_name)
         settings = self.settings_model.get()
-        if not has_interface_cache(config):
+        if self.interface_cache_requires_refresh(config, settings):
             # Pierwsze wejście renderujemy natychmiast. Przeglądarka uruchomi
             # jawny Refresh, dzięki czemu użytkownik widzi stan ładowania.
             return render(

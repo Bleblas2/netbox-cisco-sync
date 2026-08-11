@@ -80,11 +80,18 @@ Discovery → Site mapping → Enable → Refresh interfaces → Preview → App
 - Imports management information and collected interfaces made available by the
   connector.
 - Matches the Catalyst `platformId` to a NetBox Device Type `part_number`.
+- Optionally represents every switch stack member as `<hostname>-<position>` in
+  a NetBox Virtual Chassis, imports physical L2 ports, and connects standard
+  StackWise ports in a ring. The default compact mode remains one Device with a
+  combined serial limited to the NetBox field length.
 
 ### Cisco Meraki Dashboard
 
 - Supports MX appliances, MS switches, and MR access points.
 - Collects MX WAN interfaces and `singleLan` where available.
+- Represents MX `singleLan` as a NetBox bridge named `singlelan`, assigns the
+  appliance IP to that bridge, and attaches `port2` through `port5` as bridge
+  members.
 - Collects MS port configuration, enabled state, link status, and speed.
 - Maps MS port speed to the corresponding NetBox interface type.
 - Does not import client history, client MAC tables, L2 topology, or firmware.
@@ -151,8 +158,8 @@ python manage.py migrate netbox_cisco_sync
 sudo systemctl restart netbox netbox-rq
 ```
 
-The first `0.1.0` release contains one complete migration:
-`netbox_cisco_sync.0001_initial`.
+Installations created from an earlier development build must apply all newer
+plugin migrations during upgrade.
 
 ### Upgrade
 
@@ -268,6 +275,10 @@ PLUGINS_CONFIG = {
 For Catalyst Center, create NetBox Device Types whose `part_number` matches the
 source `platformId` before Apply.
 
+After changing **Detailed stack representation**, refresh interfaces before
+Preview or Apply. This refresh also stores the physical chassis inventory used
+for individual member serials and models.
+
 ## Interface Cache and Selection
 
 Interface details are collected explicitly and stored in
@@ -315,6 +326,7 @@ The plugin uses read-only API flows including:
 - `GET /dna/intent/api/v1/site`
 - `GET /dna/intent/api/v1/membership/<site-id>`
 - `GET /dna/intent/api/v1/interface/network-device/<device-id>`
+- `GET /dna/intent/api/v1/network-device/<device-id>/equipment?type=Chassis`
 
 ### Meraki Dashboard
 
