@@ -55,29 +55,6 @@
       </div>
     </div>
 
-    {% if data.stack_members %}
-      <div class="card mb-3">
-        <h2 class="card-header">Catalyst stack members</h2>
-        <div class="table-responsive">
-          <table class="table table-hover mb-0">
-            <thead><tr><th>Position</th><th>Planned Device</th><th>Model</th><th>Serial number</th></tr></thead>
-            <tbody>
-              {% for member in data.stack_members %}
-                <tr>
-                  <td>{{ member.position }}</td>
-                  <td>
-                    {% if settings.stack_detailed %}{{ data.hostname }}-{{ member.position }}{% else %}{{ data.hostname }}{% endif %}
-                  </td>
-                  <td>{{ member.model }}</td>
-                  <td>{{ member.serial_number }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    {% endif %}
-
     <div class="card mb-3">
       <h2 class="card-header">Planned result</h2>
       <table class="table table-hover attr-table mb-0">
@@ -113,11 +90,11 @@
               <th>Present</th>
               <th>Name</th>
               <th>Description</th>
+              <th>Label</th>
               <th>Admin</th>
               <th>Operational</th>
               <th>Speed</th>
               <th>NetBox type</th>
-              <th>Stack member</th>
               <th>L2 mode</th>
               <th>Untagged VLAN</th>
               <th>Bridge</th>
@@ -145,6 +122,7 @@
                 <td>{{ iface.present|yesno:"Yes,No" }}</td>
                 <td><label for="interface-{{ forloop.counter }}">{{ iface.name }}</label></td>
                 <td>{{ iface.description }}</td>
+                <td>{{ iface.label|default:"—" }}</td>
                 <td>{{ iface.admin_up|yesno:"Up,Disabled" }}</td>
                 <td>{{ iface.oper_up|yesno:"Connected,Disconnected" }}</td>
                 <td>
@@ -154,7 +132,6 @@
                   {% endif %}
                 </td>
                 <td>{{ iface.netbox_type }}</td>
-                <td>{{ iface.stack_member_position|default:"—" }}</td>
                 <td>{{ iface.mode|default:"—" }}</td>
                 <td>{{ iface.untagged_vlan|default:"—" }}</td>
                 <td>{{ iface.bridge_name|default:"—" }}</td>
