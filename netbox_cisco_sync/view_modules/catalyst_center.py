@@ -159,6 +159,12 @@ class DeviceCatalystCenterConfigEditView(CombinedDeviceSyncEditView):
             force_refresh=force_refresh,
         )
 
+    def interface_cache_requires_refresh(self, config, settings):
+        return (
+            super().interface_cache_requires_refresh(config, settings)
+            or config.interfaces_stack_detailed != bool(settings.stack_detailed)
+        )
+
     def source_context(self, config):
         return {
             "source_site_label": "Catalyst Building",

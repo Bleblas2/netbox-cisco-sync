@@ -32,15 +32,19 @@ def sync_interfaces(device, rows, settings, result, config=None):
     from dcim.models import Interface
 
     interfaces = {}
-    # Interfejs fizyczny musi powstać przed subinterfejsem z kropką, aby można
-    # było poprawnie ustawić relację parent w NetBox.
+    # Bridge musi powstać przed portami członkowskimi, a interfejs fizyczny przed
+    # subinterfejsem z kropką, aby relacje wskazywały zapisane obiekty NetBox.
     ordered = sorted(
         (
             row
             for row in syncable_interface_rows(rows, settings, config=config)
             if row.name
         ),
-        key=lambda row: ("." in row.name, row.name.casefold()),
+        key=lambda row: (
+            str(row.interface_type or "").casefold() != "bridge",
+            "." in row.name,
+            row.name.casefold(),
+        ),
     )
     for row in ordered:
         interface = Interface.objects.filter(device=device, name=row.name).first()
@@ -49,14 +53,32 @@ def sync_interfaces(device, rows, settings, result, config=None):
             interfaces.get(parent_name)
             or Interface.objects.filter(device=device, name=parent_name).first()
         )
+        bridge = (
+            interfaces.get(row.bridge_name)
+            or Interface.objects.filter(device=device, name=row.bridge_name).first()
+            if row.bridge_name
+            else None
+        )
+        if row.bridge_name and bridge is None:
+            raise ValueError(
+                f"Bridge interface {row.bridge_name} required by {row.name} does not exist."
+            )
+        if bridge is not None and bridge.type != "bridge":
+            raise ValueError(
+                f"Interface {row.bridge_name} required by {row.name} is not a bridge."
+            )
         values = {
             "type": interface_type(row, settings),
             "enabled": row.admin_up,
             "description": row.description,
             "mtu": row.mtu,
         }
+        if row.mode in {"access", "trunk"}:
+            values["mode"] = "access" if row.mode == "access" else "tagged"
         if parent:
             values["parent"] = parent
+        if bridge:
+            values["bridge"] = bridge
         if interface is None:
             interface = Interface.objects.create(device=device, name=row.name, **values)
             result.interfaces_created += 1
@@ -209,6 +231,10 @@ def interface_type(row, settings=None):
     """Mapuj typ i szybkość źródła na prawidłową wartość choices NetBox."""
     name = row.name.casefold()
     kind = row.interface_type.casefold()
+    if kind == "cisco-stackwise":
+        return "cisco-stackwise"
+    if kind == "bridge":
+        return "bridge"
     if any(token in name for token in ("loopback", "tunnel", "vmanage_system", "sdwan-system")):
         return "virtual"
     if (
@@ -229,6 +255,12 @@ def interface_type(row, settings=None):
             return exact_type
         if row.interface_type:
             return row.interface_type
+    if (
+        settings is not None
+        and settings.__class__.__name__ == "CatalystCenterConfig"
+        and kind in NOMINAL_INTERFACE_SPEEDS_MBPS
+    ):
+        return kind
     if speed >= 100000:
         return "100gbase-x-qsfp28"
     if speed >= 40000:

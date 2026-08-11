@@ -143,6 +143,7 @@ class CatalystCenterConfigForm(NetBoxModelForm):
         fields = (
             "enabled", "base_url", "username", "password", "verify_ssl", "ca_bundle",
             "request_timeout", "request_retries", "update_existing", "default_device_role",
+            "stack_detailed",
             "sync_interfaces", "ignore_disabled_interfaces", "sync_ipv4", "sync_ipv6",
             "sync_mac_addresses",
             "preferred_primary_ipv4_interface", "import_device_roles",

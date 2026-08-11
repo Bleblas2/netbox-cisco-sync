@@ -83,14 +83,25 @@ def collect_device_details(device, client):
         appliance_ip = str(single_lan.get("applianceIp") or "").strip()
         if appliance_ip:
             interfaces.append(CollectedInterface(
-                name="SingleLan",
+                name="singlelan",
                 description="Meraki MX single LAN",
-                interface_type=family_types.get("MX", "1000base-t"),
+                interface_type="bridge",
                 admin_up=True,
                 oper_up=True,
                 ipv4_address=appliance_ip,
                 ipv4_mask=_subnet_mask(single_lan.get("subnet")),
             ))
+            interfaces.extend(
+                CollectedInterface(
+                    name=f"port{port_number}",
+                    description="Meraki MX single LAN member",
+                    interface_type=family_types.get("MX", "1000base-t"),
+                    admin_up=True,
+                    oper_up=True,
+                    bridge_name="singlelan",
+                )
+                for port_number in range(2, 6)
+            )
         elif raw.get("lanIp"):
             interfaces.append(CollectedInterface(
                 name="LAN",

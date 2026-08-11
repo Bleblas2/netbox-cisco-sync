@@ -22,6 +22,27 @@ def netbox_device_serial(value):
 
 def sync_collected_device(config, data, settings, *, apply=False):
     """Porównaj albo zapisz jeden Edge; Site jest obowiązkowy."""
+    from ..models import DeviceCatalystCenterConfig
+    from .catalyst_stacks import (
+        is_detailed_catalyst_stack,
+        sync_detailed_catalyst_stack,
+    )
+
+    if (
+        isinstance(config, DeviceCatalystCenterConfig)
+        and getattr(settings, "stack_detailed", False) is True
+        and "," in str(data.serial_number or "")
+        and len(data.stack_members) < 2
+    ):
+        raise ValueError(
+            "Catalyst Center returned an aggregate stack serial without a matching "
+            "per-member model list. Refresh Discovery before Preview or Apply."
+        )
+    if is_detailed_catalyst_stack(config, data, settings):
+        return sync_detailed_catalyst_stack(
+            config, data, settings, apply=apply
+        )
+
     from dcim.models import Device
 
     result = SyncResult()

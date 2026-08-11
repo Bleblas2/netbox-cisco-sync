@@ -55,6 +55,29 @@
       </div>
     </div>
 
+    {% if data.stack_members %}
+      <div class="card mb-3">
+        <h2 class="card-header">Catalyst stack members</h2>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Position</th><th>Planned Device</th><th>Model</th><th>Serial number</th></tr></thead>
+            <tbody>
+              {% for member in data.stack_members %}
+                <tr>
+                  <td>{{ member.position }}</td>
+                  <td>
+                    {% if settings.stack_detailed %}{{ data.hostname }}-{{ member.position }}{% else %}{{ data.hostname }}{% endif %}
+                  </td>
+                  <td>{{ member.model }}</td>
+                  <td>{{ member.serial_number }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endif %}
+
     <div class="card mb-3">
       <h2 class="card-header">Planned result</h2>
       <table class="table table-hover attr-table mb-0">
@@ -94,6 +117,10 @@
               <th>Operational</th>
               <th>Speed</th>
               <th>NetBox type</th>
+              <th>Stack member</th>
+              <th>L2 mode</th>
+              <th>Untagged VLAN</th>
+              <th>Bridge</th>
               <th>IPv4</th>
               <th>Mask</th>
               <th>IPv6</th>
@@ -127,6 +154,10 @@
                   {% endif %}
                 </td>
                 <td>{{ iface.netbox_type }}</td>
+                <td>{{ iface.stack_member_position|default:"—" }}</td>
+                <td>{{ iface.mode|default:"—" }}</td>
+                <td>{{ iface.untagged_vlan|default:"—" }}</td>
+                <td>{{ iface.bridge_name|default:"—" }}</td>
                 <td>{{ iface.ipv4_address }}</td>
                 <td>{{ iface.ipv4_mask }}</td>
                 <td>{{ iface.ipv6_addresses|join:", " }}</td>
@@ -134,7 +165,7 @@
                 <td>{{ iface.vpn_id }}</td>
               </tr>
             {% empty %}
-              <tr><td colspan="13">No interfaces stored for {{ source_name }}.</td></tr>
+              <tr><td colspan="17">No interfaces stored for {{ source_name }}.</td></tr>
             {% endfor %}
           </tbody>
         </table>
