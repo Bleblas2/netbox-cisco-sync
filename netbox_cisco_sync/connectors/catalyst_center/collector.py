@@ -96,6 +96,12 @@ def parse_device(raw, site=None):
     serial_source = raw.get("serialNumbers") or raw.get("serialNumber")
     platform_source = raw.get("platformIds") or raw.get("platformId")
     serial_numbers = _source_values(serial_source)
+    stack_info = normalize_stack_switch_info(raw.get("stackSwitchInfo"))
+    master_serial = stack_master_serial(stack_info, serial_numbers)
+    stack_serials = _unique_values([
+        *serial_numbers,
+        *(row["serialNumber"] for row in stack_info),
+    ])
     platform_id = normalize_platform_id(platform_source)
     interfaces = []
     if management_ip:
@@ -110,7 +116,7 @@ def parse_device(raw, site=None):
         system_ip=management_ip,
         hostname=hostname,
         uuid=str(raw.get("id") or ""),
-        serial_number=", ".join(serial_numbers),
+        serial_number=master_serial,
         model=platform_id,
         site_id=str((site or {}).get("id") or ""),
         site_name=str((site or {}).get("name") or ""),
@@ -126,6 +132,10 @@ def parse_device(raw, site=None):
         status="active" if str(raw.get("reachabilityStatus") or "").casefold() == "reachable" else "failed",
         source_role=str(raw.get("role") or "").strip(),
         source_family=str(raw.get("family") or "").strip(),
+        switch_stack_serials=[
+            serial for serial in stack_serials if serial != master_serial
+        ],
+        switch_stack_info=stack_info,
     )
 
 
@@ -241,6 +251,55 @@ def _source_values(value):
     if isinstance(value, (list, tuple)):
         return [str(item).strip() for item in value if str(item).strip()]
     return [item.strip() for item in str(value or "").split(",") if item.strip()]
+
+
+def _unique_values(values):
+    """Usuń puste i powtórzone wartości bez zmiany kolejności z CCC."""
+    result = []
+    for value in values:
+        normalized = str(value or "").strip()
+        if normalized and normalized not in result:
+            result.append(normalized)
+    return result
+
+
+def normalize_stack_switch_info(value):
+    """Zachowaj stabilny podzbiór pól formatu stackSwitchInfo Catalyst Center."""
+    rows = value if isinstance(value, list) else []
+    result = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        serial = str(row.get("serialNumber") or "").strip()
+        if not serial:
+            continue
+        result.append({
+            "stackMemberNumber": _int_or_none(row.get("stackMemberNumber")),
+            "switchPriority": _int_or_none(row.get("switchPriority")),
+            "role": str(row.get("role") or "").strip(),
+            "serialNumber": serial,
+            "platformId": str(row.get("platformId") or "").strip(),
+        })
+    return sorted(
+        result,
+        key=lambda row: (
+            row["stackMemberNumber"] is None,
+            row["stackMemberNumber"] or 0,
+        ),
+    )
+
+
+def stack_master_serial(stack_info, fallback_serials=()):
+    """Wybierz serial ACTIVE, następnie member 1, a na końcu pierwszy serial."""
+    for role in ("active", "master"):
+        for row in stack_info:
+            if str(row.get("role") or "").casefold() == role:
+                return row["serialNumber"]
+    for row in stack_info:
+        if row.get("stackMemberNumber") == 1:
+            return row["serialNumber"]
+    serials = _source_values(fallback_serials)
+    return serials[0] if serials else ""
 
 
 def _physical_interface_type(name, speed_mbps):

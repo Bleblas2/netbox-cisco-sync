@@ -32,6 +32,8 @@ def discover_catalyst_devices():
         config.management_ip = row.system_ip or None
         config.hostname = row.hostname
         config.serial_number = row.serial_number
+        config.switch_stack_serials = list(row.switch_stack_serials)
+        config.switch_stack_info = list(row.switch_stack_info)
         config.device_model = row.model
         config.catalyst_site_id = row.site_id
         config.catalyst_site_name = row.site_name
@@ -68,6 +70,8 @@ def catalyst_inventory_dto(config):
             "hostname": config.hostname,
             "managementIpAddress": str(config.management_ip or ""),
             "serialNumber": config.serial_number,
+            "serialNumbers": [config.serial_number, *config.switch_stack_serials],
+            "stackSwitchInfo": config.switch_stack_info,
             "platformId": config.device_model,
             "reachabilityStatus": config.reachability,
             "role": config.catalyst_role,

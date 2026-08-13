@@ -239,6 +239,8 @@ class DeviceCatalystCenterConfig(NetBoxModel):
     management_ip = models.GenericIPAddressField(null=True, blank=True, protocol="both")
     hostname = models.CharField(max_length=100)
     serial_number = models.CharField(max_length=100, blank=True)
+    switch_stack_serials = models.JSONField(default=list, blank=True)
+    switch_stack_info = models.JSONField(default=list, blank=True)
     device_model = models.CharField(max_length=100, blank=True)
     catalyst_site_id = models.CharField(max_length=100, blank=True, db_index=True)
     catalyst_site_name = models.CharField(max_length=200, blank=True)

@@ -79,8 +79,12 @@ def sync_interfaces(device, rows, settings, result, config=None):
         }
         if interface is not None and interface.name != row.name:
             values["name"] = row.name
-        if row.mode in {"access", "trunk"}:
-            values["mode"] = "access" if row.mode == "access" else "tagged"
+        if row.mode in {"access", "trunk", "tagged-all"}:
+            values["mode"] = {
+                "access": "access",
+                "trunk": "tagged",
+                "tagged-all": "tagged-all",
+            }[row.mode]
         if parent:
             values["parent"] = parent
         if bridge:

@@ -45,7 +45,8 @@ class DeviceCatalystCenterConfigSerializer(NetBoxModelSerializer):
         model = DeviceCatalystCenterConfig
         fields = (
             "id", "url", "display", "catalyst_id", "management_ip", "hostname",
-            "serial_number", "device_model", "catalyst_site_id", "catalyst_site_name",
+            "serial_number", "switch_stack_serials", "switch_stack_info", "device_model",
+            "catalyst_site_id", "catalyst_site_name",
             "latitude", "longitude", "reachability", "catalyst_role", "catalyst_family", "netbox_site", "device",
             "match_method", "manual_site_override", "enabled",
             "interface_selection", "interfaces_last_refreshed", "last_discovered",

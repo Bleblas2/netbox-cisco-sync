@@ -4,6 +4,7 @@ from django.utils.text import slugify
 
 from ..plugin_settings import plugin_setting
 from .addresses import candidate_ip_rows, sync_addresses
+from .device_custom_fields import sync_switch_stack_fields
 from .fhrp import sync_fhrp
 from .interfaces import sync_interfaces, syncable_interface_rows, valid_mac
 from .result import SyncResult, record_synced_object, update_fields
@@ -97,6 +98,8 @@ def sync_collected_device(config, data, settings, *, apply=False):
         )
         result.devices_updated += 1
     record_synced_object(result, device)
+    if hasattr(config, "catalyst_id"):
+        sync_switch_stack_fields(device, data, result)
 
     # Kolejność: Device -> interfejsy/MAC -> zwykłe IP -> grupa FHRP ->
     # członkostwo interfejsu -> VIP.

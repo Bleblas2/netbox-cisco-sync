@@ -45,6 +45,10 @@ class MerakiClient:
         """Pobierz szczegóły jednego urządzenia, w tym adresy LAN/WAN dla MX."""
         return self._get(f"/devices/{serial}")
 
+    def get_appliance_uplinks_settings(self, serial):
+        """Pobierz konfigurację wszystkich interfejsów WAN urządzenia MX."""
+        return self._get(f"/devices/{serial}/appliance/uplinks/settings")
+
     def get_switch_ports(self, serial):
         """Pobierz konfigurację wszystkich portów przełącznika MS."""
         return self._get(f"/devices/{serial}/switch/ports")
@@ -56,6 +60,10 @@ class MerakiClient:
     def get_appliance_single_lan(self, network_id):
         """Pobierz konfigurację pojedynczej sieci LAN urządzenia MX."""
         return self._get(f"/networks/{network_id}/appliance/singleLan")
+
+    def get_appliance_ports(self, network_id):
+        """Pobierz konfigurację wszystkich fizycznych portów LAN urządzenia MX."""
+        return self._get(f"/networks/{network_id}/appliance/ports")
 
     def _get(self, path, params=None):
         """Wykonaj GET z retry dla limitu 429 oraz błędów przejściowych."""

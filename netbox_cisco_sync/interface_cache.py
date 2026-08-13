@@ -105,6 +105,13 @@ def refresh_interface_cache(config, data, settings):
     cached_interface_queryset(config).exclude(
         normalized_name__in=seen,
     ).update(present=False)
+    obsolete_names = obsolete_meraki_cache_names(config, data)
+    if obsolete_names:
+        # W MX64/MX67 Port 2 fizycznie zmienia rolę na WAN2. Nie zachowujemy go
+        # jako nieobecnego LAN-u, bo w tej konfiguracji nie jest osobnym portem.
+        cached_interface_queryset(config).filter(
+            normalized_name__in=obsolete_names,
+        ).delete()
     config.interfaces_last_refreshed = now
     config.cached_vrrp_groups = [
         {
@@ -124,6 +131,19 @@ def refresh_interface_cache(config, data, settings):
         "last_updated",
     ]
     config.save(update_fields=update_fields)
+
+
+def obsolete_meraki_cache_names(config, data):
+    """Wskaż porty LAN, które fizycznie zostały przełączone do roli WAN."""
+    if not isinstance(config, DeviceMerakiConfig):
+        return set()
+    if str(config.device_model or "").strip().upper() not in {"MX64", "MX67"}:
+        return set()
+    wan2 = next(
+        (row for row in data.interfaces if str(row.name).casefold() == "internet 2"),
+        None,
+    )
+    return {"port 2"} if wan2 is not None and wan2.admin_up else set()
 
 
 def collected_device_from_cache(
