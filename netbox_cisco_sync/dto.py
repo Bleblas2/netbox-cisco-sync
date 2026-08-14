@@ -67,6 +67,8 @@ class CollectedDevice:
     status: str = "active"
     source_role: str = ""
     source_family: str = ""
+    switch_stack_serials: list[str] = field(default_factory=list)
+    switch_stack_info: list[dict] = field(default_factory=list)
 
     def to_dict(self):
         # Snapshot zawiera wyłącznie proste typy JSON, więc może być bezpiecznie zapisany

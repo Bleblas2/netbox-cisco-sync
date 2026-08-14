@@ -61,8 +61,20 @@ def _sync_site_source_id(
             "description": field_description,
             "type": "text",
             "required": False,
+            "group_name": "Cisco Sync",
+            "ui_visible": "if-set",
         },
     )
+    custom_field_updates = []
+    for field, value in {
+        "group_name": "Cisco Sync",
+        "ui_visible": "if-set",
+    }.items():
+        if getattr(custom_field, field) != value:
+            setattr(custom_field, field, value)
+            custom_field_updates.append(field)
+    if custom_field_updates:
+        custom_field.save(update_fields=custom_field_updates)
     site_content_type = ContentType.objects.get_for_model(Site)
     if not custom_field.object_types.filter(pk=site_content_type.pk).exists():
         custom_field.object_types.add(site_content_type)

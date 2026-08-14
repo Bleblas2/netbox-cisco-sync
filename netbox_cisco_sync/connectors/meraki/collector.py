@@ -1,6 +1,7 @@
 """Normalizacja danych Meraki do wspólnego DTO synchronizacji."""
 
 import ipaddress
+import re
 
 from ..base import ConnectorError
 from ...dto import CollectedDevice, CollectedInterface
@@ -56,24 +57,23 @@ def collect_device_details(device, client):
             ))
     elif device.source_family == "MX":
         raw = client.get_device(device.serial_number)
-        # Nazwy i zachowanie odpowiadają sprawdzonej integracji referencyjnej.
-        for name, description, label, address in (
-            ("Internet 1", "WAN 1 uplink", "WAN1", raw.get("wan1Ip")),
-            ("Internet 2", "WAN 2 uplink", "WAN2", raw.get("wan2Ip")),
-        ):
-            if address:
-                interfaces.append(CollectedInterface(
-                    name=name,
-                    description=description,
-                    label=label,
-                    interface_type=family_types.get("MX", "1000base-t"),
-                    admin_up=True,
-                    oper_up=True,
-                    ipv4_address=str(address),
-                    # Dashboard API nie zwraca maski w tym obiekcie. /32 zachowuje
-                    # adres bez zgadywania prefiksu sieci użytkownika.
-                    ipv4_mask="255.255.255.255",
-                ))
+        try:
+            uplink_settings = client.get_appliance_uplinks_settings(
+                device.serial_number
+            )
+        except ConnectorError:
+            # Starszy model lub zakres uprawnień może nie udostępniać endpointu.
+            uplink_settings = {}
+        interfaces.extend(_collect_appliance_uplinks(
+            raw,
+            uplink_settings,
+            family_types.get("MX", "1000base-t"),
+        ))
+        reserved_lan_ports = _wan_reserved_lan_ports(
+            device.model,
+            raw,
+            uplink_settings,
+        )
         single_lan = {}
         try:
             single_lan = client.get_appliance_single_lan(device.site_id)
@@ -102,17 +102,30 @@ def collect_device_details(device, client):
                     bridge_name="singlelan",
                 )
                 for port_number in range(2, 6)
+                if port_number not in reserved_lan_ports
             )
-        elif raw.get("lanIp"):
-            interfaces.append(CollectedInterface(
-                name="LAN",
-                description="LAN interface",
-                interface_type=family_types.get("MX", "1000base-t"),
-                admin_up=True,
-                oper_up=True,
-                ipv4_address=str(raw.get("lanIp")),
-                ipv4_mask="255.255.255.255",
-            ))
+        else:
+            try:
+                appliance_ports = client.get_appliance_ports(device.site_id)
+            except ConnectorError:
+                appliance_ports = []
+            interfaces.extend(
+                _collect_appliance_ports(
+                    appliance_ports,
+                    family_types.get("MX", "1000base-t"),
+                    excluded_ports=reserved_lan_ports,
+                )
+            )
+            if raw.get("lanIp"):
+                interfaces.append(CollectedInterface(
+                    name="LAN",
+                    description="LAN interface",
+                    interface_type="virtual",
+                    admin_up=True,
+                    oper_up=True,
+                    ipv4_address=str(raw.get("lanIp")),
+                    ipv4_mask="255.255.255.255",
+                ))
     elif device.source_family == "MR":
         interfaces.append(CollectedInterface(
             name="Radio 0",
@@ -161,3 +174,143 @@ def _subnet_mask(value):
         return str(ipaddress.ip_network(str(value), strict=False).netmask)
     except ValueError:
         return "255.255.255.255"
+
+
+def _collect_appliance_ports(rows, interface_type, *, excluded_ports=()):
+    """Znormalizuj konfigurację portów LAN MX zwracaną dla całej sieci."""
+    result = []
+    excluded = {str(value) for value in excluded_ports}
+    for row in rows if isinstance(rows, list) else []:
+        port_number = row.get("number")
+        if port_number in (None, "") or str(port_number) in excluded:
+            continue
+        mode = str(row.get("type") or "").strip().casefold()
+        allowed_vlans = str(row.get("allowedVlans") or "").strip()
+        netbox_mode = (
+            "tagged-all"
+            if mode == "trunk" and allowed_vlans.casefold() == "all"
+            else mode if mode in {"access", "trunk"} else ""
+        )
+        result.append(CollectedInterface(
+            name=f"Port {port_number}",
+            description="Meraki MX LAN port",
+            interface_type=interface_type,
+            admin_up=bool(row.get("enabled", True)),
+            # Ten endpoint zwraca konfigurację, ale nie stan fizycznego linku.
+            oper_up=False,
+            mode=netbox_mode,
+            untagged_vlan=(
+                None
+                if bool(row.get("dropUntaggedTraffic"))
+                else _vlan_id(row.get("vlan"))
+            ),
+            tagged_vlans=_vlan_ids(allowed_vlans) if mode == "trunk" else [],
+        ))
+    return result
+
+
+def _wan_reserved_lan_ports(model, device_data, uplink_settings):
+    """Wyklucz Port 2, gdy MX64/MX67 wykorzystuje go jako fizyczny WAN2."""
+    if str(model or "").strip().upper() not in {"MX64", "MX67"}:
+        return set()
+    configured = (
+        uplink_settings.get("interfaces", {})
+        if isinstance(uplink_settings, dict)
+        else {}
+    )
+    wan2 = configured.get("wan2") if isinstance(configured, dict) else None
+    if isinstance(wan2, dict):
+        wan2_used = wan2.get("enabled") is True
+    else:
+        # Fallback dla starszego API: obecny adres WAN2 oznacza wykorzystanie portu.
+        wan2_used = bool(str(device_data.get("wan2Ip") or "").strip())
+    return {2} if wan2_used else set()
+
+
+def _collect_appliance_uplinks(device_data, settings, interface_type):
+    """Połącz konfigurację WAN z aktualnymi adresami zwracanymi przez Device."""
+    configured = settings.get("interfaces", {}) if isinstance(settings, dict) else {}
+    names = {
+        str(name).casefold()
+        for name in configured
+        if re.fullmatch(r"wan\d+", str(name), re.IGNORECASE)
+    }
+    names.update(
+        match.group(1).casefold()
+        for key in device_data if (match := re.fullmatch(r"(wan\d+)Ip", str(key), re.IGNORECASE))
+    )
+    # Zachowaj dotychczasową obsługę WAN1/WAN2, gdy endpoint ustawień jest
+    # niedostępny, ale Device zwraca tylko jedno z pól adresowych.
+    if not names:
+        names.update({"wan1", "wan2"})
+
+    result = []
+    for name in sorted(names, key=lambda value: int(value[3:])):
+        number = int(name[3:])
+        config = configured.get(name, {})
+        if not isinstance(config, dict):
+            config = {}
+        address, mask = _uplink_ipv4(device_data, name, config)
+        # Bez endpointu ustawień zachowujemy wcześniejszą zasadę: port bez
+        # raportowanego adresu nie jest zgadywany na podstawie numeru.
+        if not configured and not address:
+            continue
+        vlan_tagging = config.get("vlanTagging") or {}
+        interfaces_type = str(interface_type or "1000base-t")
+        result.append(CollectedInterface(
+            name=f"Internet {number}",
+            description=f"WAN {number} uplink",
+            label=f"WAN{number}",
+            interface_type=interfaces_type,
+            admin_up=bool(config.get("enabled", True)),
+            oper_up=bool(address),
+            ipv4_address=address,
+            ipv4_mask=mask,
+            untagged_vlan=(
+                _vlan_id(vlan_tagging.get("vlanId"))
+                if vlan_tagging.get("enabled") is True
+                else None
+            ),
+        ))
+    return result
+
+
+def _uplink_ipv4(device_data, name, config):
+    """Pobierz aktualny lub skonfigurowany statyczny adres IPv4 WAN."""
+    value = str(device_data.get(f"{name}Ip") or "").strip()
+    if not value:
+        ipv4 = ((config.get("svis") or {}).get("ipv4") or {})
+        value = str(ipv4.get("address") or "").strip()
+    if not value:
+        return "", ""
+    try:
+        parsed = ipaddress.ip_interface(value)
+    except ValueError:
+        return value, "255.255.255.255"
+    return str(parsed.ip), str(parsed.netmask)
+
+
+def _vlan_id(value):
+    """Zamień pojedynczy identyfikator VLAN na liczbę."""
+    try:
+        return int(value) if value not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _vlan_ids(value):
+    """Rozwiń listę i zakresy VLAN; wartość all pozostaw bez zgadywania."""
+    result = []
+    for token in str(value or "").split(","):
+        token = token.strip()
+        if not token or token.casefold() == "all":
+            continue
+        if "-" in token:
+            first, last = token.split("-", 1)
+            try:
+                result.extend(range(int(first), int(last) + 1))
+            except ValueError:
+                continue
+        elif (vlan := _vlan_id(token)) is not None:
+            result.append(vlan)
+    return result

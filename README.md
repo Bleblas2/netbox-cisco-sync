@@ -82,7 +82,9 @@ Discovery → Site mapping → Enable → Refresh interfaces → Preview → App
 - Matches the Catalyst `platformId` to a NetBox Device Type `part_number`.
 - Imports all physical switch interfaces into the single NetBox Device used for
   the logical Catalyst Center device. A reported stack remains one Device with
-  its combined serial limited to the NetBox field length.
+  the active member serial in `Device.serial`. Remaining serials and the exact
+  Catalyst `stackSwitchInfo` payload are stored in the `SwitchStackSerials` and
+  `SwitchStackInfo` Device Custom Fields, visible only when populated.
 
 ### Cisco Meraki Dashboard
 
@@ -92,6 +94,12 @@ Discovery → Site mapping → Enable → Refresh interfaces → Preview → App
   appliance IP to that bridge, and attaches `Port 2` through `Port 5` as bridge
   members. MX uplinks use Device Type Library names `Internet 1`/`Internet 2`
   with labels `WAN1`/`WAN2`.
+- When `singleLan` is not active, imports every MX appliance LAN port with its
+  enabled state, access/trunk mode, native/access VLAN, and allowed VLAN list.
+- Reads MX uplink settings per device, including models with WAN3, and merges
+  their enabled/VLAN configuration with current WAN addresses.
+- On MX64/MX67, removes `Port 2` from LAN when the shared physical port is
+  enabled as `Internet 2`/WAN2.
 - Collects MS port configuration, enabled state, link status, and speed.
 - Maps MS port speed to the corresponding NetBox interface type.
 - Does not import client history, client MAC tables, L2 topology, or firmware.
@@ -333,6 +341,8 @@ The plugin uses read-only API flows including:
 - `GET /devices/<serial>/switch/ports`
 - `GET /devices/<serial>/switch/ports/statuses`
 - `GET /networks/<network-id>/appliance/singleLan`
+- `GET /networks/<network-id>/appliance/ports`
+- `GET /devices/<serial>/appliance/uplinks/settings`
 
 ## Data Rules
 
