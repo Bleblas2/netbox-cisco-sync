@@ -5,6 +5,7 @@ modułu dla zgodności z konfiguracją URL-i i istniejącymi rozszerzeniami.
 """
 
 from .view_modules.catalyst_center import (
+    BulkCatalystCenterApplySelectedView,
     BulkCatalystCenterInterfaceRefreshView,
     BulkCatalystCenterSyncView,
     BulkRefreshCatalystInterfaces,
@@ -24,6 +25,7 @@ from .view_modules.common import (
     DiscoveredDevicesView,
 )
 from .view_modules.meraki import (
+    BulkMerakiApplySelectedView,
     BulkMerakiInterfaceRefreshView,
     BulkMerakiSyncView,
     DeviceMerakiConfigBulkDeleteView,
@@ -51,6 +53,7 @@ from .view_modules.sync_runs import (
     SyncRunView,
 )
 from .view_modules.vmanage import (
+    BulkVmanageApplySelectedView,
     BulkVmanageInterfaceRefreshView,
     BulkVmanageSyncView,
     DeviceVmanageConfigBulkDeleteView,

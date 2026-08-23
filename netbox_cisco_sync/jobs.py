@@ -219,6 +219,9 @@ class BulkVmanageSyncJob(JobRunner):
             self.logger.info(message)
             return message
         configs = enabled_configs()
+        config_ids = kwargs.get("config_ids")
+        if config_ids is not None:
+            configs = configs.filter(pk__in=config_ids)
         total = configs.count()
         if total == 0:
             message = "No enabled vManage devices with a NetBox Site mapping."
@@ -275,6 +278,9 @@ class BulkCatalystCenterSyncJob(JobRunner):
             self.logger.info(message)
             return message
         configs = enabled_catalyst_configs(settings)
+        config_ids = kwargs.get("config_ids")
+        if config_ids is not None:
+            configs = configs.filter(pk__in=config_ids)
         total = configs.count()
         counts = {
             SyncStatusChoices.OK: 0,
@@ -339,6 +345,9 @@ class BulkMerakiSyncJob(JobRunner):
             self.logger.info(message)
             return message
         configs = enabled_meraki_configs(settings)
+        config_ids = kwargs.get("config_ids")
+        if config_ids is not None:
+            configs = configs.filter(pk__in=config_ids)
         total = configs.count()
         client = None
         counts = {SyncStatusChoices.OK: 0, SyncStatusChoices.SKIPPED: 0, SyncStatusChoices.FAILED: 0}

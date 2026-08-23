@@ -48,6 +48,8 @@ Discovery → Site mapping → Enable → Refresh interfaces → Preview → App
 - Reverts only objects recorded as created by a selected Apply run.
 - Supports single-device Apply, background bulk Apply, and background interface
   refresh for selected devices through NetBox workers.
+- Supports background Apply for only the devices selected in each platform
+  inventory list.
 
 ## Safety Model
 
@@ -280,6 +282,11 @@ PLUGINS_CONFIG = {
 8. Inspect Preview and Apply the stored snapshot.
 9. Verify the resulting NetBox objects and Sync Run.
 10. After validating individual devices, use **Apply all enabled devices**.
+
+Alternatively, select specific enabled and Site-mapped records in any platform
+inventory and choose **Apply selected devices** directly below the interface
+refresh action. This uses only their existing interface cache and does not query
+the source platform.
 
 For every source, Device Types are identified by exact `part_number`, not by
 their display model name. Apply reuses an existing matching type. Only when no
