@@ -1,0 +1,37 @@
+# Plan zmian Device Type i RFC1918 WAN
+
+Status: ukończone; wstępne testy użytkownika potwierdzają poprawne działanie.
+
+## Device Type — ukończone
+
+- Wspólne dopasowanie dla vManage, Catalyst Center i Meraki używa dokładnego
+  `DeviceType.part_number`, a nie pola `model`.
+- Istniejący typ jest ponownie używany również wtedy, gdy jego nazwa modelu
+  różni się od wartości zwróconej przez źródło.
+- Nowy typ Cisco powstaje tylko przy braku zgodnego `part_number`; nowy obiekt
+  otrzymuje zarówno `model`, jak i `part_number`.
+- Catalyst Center nie wymaga już wcześniejszego ręcznego utworzenia typu.
+- Wielokrotne typy z tym samym `part_number` kończą Apply kontrolowanym błędem,
+  zamiast powodować przypadkowy wybór.
+
+## Ignorowanie RFC1918 na WAN — ukończone
+
+- Każda platforma ma osobny checkbox `ignore_rfc1918_wan_ips`, domyślnie
+  wyłączony.
+- Reguła obejmuje wyłącznie `10.0.0.0/8`, `172.16.0.0/12` i
+  `192.168.0.0/16`.
+- WAN jest rozpoznawany po nazwie lub etykiecie `WAN`, `WANn` albo `WAN n`;
+  obejmuje to porty Meraki `Internet N` z etykietą `WANn`.
+- Dla vManage rozpoznawanie używa `ifname`; sam `vpn_id == 0` nie kwalifikuje
+  portu jako WAN.
+- Prywatny adres WAN nie tworzy `IPAddress`, nie trafia do licznika Preview ani
+  primary IPv4. Interface pozostaje, a adres z prefiksem jest idempotentnie
+  dopisywany do jego opisu.
+
+## Walidacja — ukończone
+
+- migracja `0009_ignore_rfc1918_wan_ips` zastosowana na `netbox-demo`;
+- kompilacja i `manage.py check` zakończone powodzeniem;
+- test polityki WAN/RFC1918 i transakcyjny test dopasowania Device Type: PASS;
+- `sidebar_smoke.py`: `134/134`, `FAIL=0`;
+- wstępne testy funkcjonalne użytkownika potwierdziły działanie zmian.

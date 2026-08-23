@@ -6,6 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 
 from ..plugin_settings import platform_plugin_setting
 from .result import record_synced_object, update_fields
+from .wan import effective_interface_description
 
 
 NOMINAL_INTERFACE_SPEEDS_MBPS = {
@@ -73,7 +74,7 @@ def sync_interfaces(device, rows, settings, result, config=None):
         values = {
             "type": interface_type(row, settings),
             "enabled": row.admin_up,
-            "description": row.description,
+            "description": effective_interface_description(row, settings),
             "label": row.label,
             "mtu": row.mtu,
         }

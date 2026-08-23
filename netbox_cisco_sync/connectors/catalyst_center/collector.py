@@ -128,7 +128,6 @@ def parse_device(raw, site=None):
         platform_name=plugin_setting("ccc_default_platform_name"),
         platform_slug=plugin_setting("ccc_default_platform_slug"),
         device_type_part_number=platform_id,
-        require_existing_device_type=True,
         status="active" if str(raw.get("reachabilityStatus") or "").casefold() == "reachable" else "failed",
         source_role=str(raw.get("role") or "").strip(),
         source_family=str(raw.get("family") or "").strip(),

@@ -117,7 +117,8 @@ class VmanageSyncConfigForm(NetBoxModelForm):
         fields = (
             "enabled", "base_url", "username", "password", "verify_ssl", "ca_bundle",
             "request_timeout", "request_retries", "update_existing",
-            "sync_interfaces", "ignore_disabled_interfaces", "sync_ipv4", "sync_ipv6", "sync_mac_addresses",
+            "sync_interfaces", "ignore_disabled_interfaces", "sync_ipv4", "ignore_rfc1918_wan_ips",
+            "sync_ipv6", "sync_mac_addresses",
             "set_primary_ips", "preferred_primary_ipv4_interface", "sync_fhrp", "gps_max_distance_km",
             "default_device_role", "sync_interval_hours", "history_keep_days", "tags",
         )
@@ -143,7 +144,7 @@ class CatalystCenterConfigForm(NetBoxModelForm):
         fields = (
             "enabled", "base_url", "username", "password", "verify_ssl", "ca_bundle",
             "request_timeout", "request_retries", "update_existing", "default_device_role",
-            "sync_interfaces", "ignore_disabled_interfaces", "sync_ipv4", "sync_ipv6",
+            "sync_interfaces", "ignore_disabled_interfaces", "sync_ipv4", "ignore_rfc1918_wan_ips", "sync_ipv6",
             "sync_mac_addresses",
             "preferred_primary_ipv4_interface", "import_device_roles",
             "gps_max_distance_km",
@@ -170,7 +171,7 @@ class MerakiConfigForm(NetBoxModelForm):
         fields = (
             "enabled", "base_url", "api_key", "organization_ids", "request_timeout", "request_retries",
             "update_existing", "default_device_role", "sync_interfaces", "ignore_disabled_interfaces",
-            "sync_ipv4", "sync_ipv6", "sync_mac_addresses", "set_primary_ips",
+            "sync_ipv4", "ignore_rfc1918_wan_ips", "sync_ipv6", "sync_mac_addresses", "set_primary_ips",
             "preferred_primary_ipv4_interface", "import_device_families", "gps_max_distance_km",
             "sync_interval_hours", "history_keep_days", "tags",
         )

@@ -142,7 +142,7 @@ def build_preview_result(result, device, data, settings, config=None):
     result.devices_created = int(device is None)
     result.devices_updated = int(device is not None)
     result.interfaces_created = len(interface_names)
-    result.ips_created = len(candidate_ip_rows(interface_rows))
+    result.ips_created = len(candidate_ip_rows(interface_rows, settings))
     result.macs_created = len({
         row.mac_address.lower()
         for row in interface_rows
@@ -194,15 +194,33 @@ def ensure_device_prerequisites(
     if created:
         result.created_objects.append(platform)
     model_name = model_name or "Cisco SD-WAN Edge"
-    if require_existing_device_type:
-        device_type = DeviceType.objects.get(part_number=part_number or model_name)
-        created = False
-    else:
-        device_type, created = DeviceType.objects.get_or_create(
+    source_part_number = str(part_number or model_name).strip()
+    matches = DeviceType.objects.filter(part_number=source_part_number)
+    match_count = matches.count()
+    if match_count > 1:
+        raise ValueError(
+            f"Multiple Device Types use part number {source_part_number}."
+        )
+    device_type = matches.first()
+    created = False
+    if device_type is None:
+        base_slug = slugify(model_name)[:100] or "cisco-device"
+        candidate_slug = base_slug
+        suffix = 2
+        while DeviceType.objects.filter(
+            manufacturer=manufacturer,
+            slug=candidate_slug,
+        ).exists():
+            suffix_text = f"-{suffix}"
+            candidate_slug = f"{base_slug[:100 - len(suffix_text)]}{suffix_text}"
+            suffix += 1
+        device_type = DeviceType.objects.create(
             manufacturer=manufacturer,
             model=model_name,
-            defaults={"slug": slugify(model_name)[:100]},
+            part_number=source_part_number,
+            slug=candidate_slug,
         )
+        created = True
     if created:
         result.created_objects.append(device_type)
     return manufacturer, device_type, role, platform

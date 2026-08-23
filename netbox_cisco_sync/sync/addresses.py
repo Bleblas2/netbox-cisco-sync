@@ -5,6 +5,7 @@ import ipaddress
 from django.contrib.contenttypes.models import ContentType
 
 from .result import record_synced_object
+from .wan import ignored_rfc1918_wan_cidr
 
 
 def sync_addresses(device, interfaces, data, settings, result):
@@ -26,7 +27,7 @@ def sync_addresses(device, interfaces, data, settings, result):
         addresses = []
         if settings.sync_ipv4:
             cidr = ipv4_cidr(row.ipv4_address, row.ipv4_mask)
-            if cidr:
+            if cidr and cidr != ignored_rfc1918_wan_cidr(row, settings):
                 addresses.append(cidr)
         if settings.sync_ipv6:
             # Nie zgadujemy prefiksu IPv6. Adres bez /prefix zostaje pominięty.
@@ -149,12 +150,15 @@ def ip_has_incomplete_assignment(ip_obj):
     return (ip_obj.assigned_object_type_id is None) != (ip_obj.assigned_object_id is None)
 
 
-def candidate_ip_rows(rows):
+def candidate_ip_rows(rows, settings=None):
     """Policz unikalne adresy, które mogą pojawić się w preview."""
     values = set()
     for row in rows:
         cidr = ipv4_cidr(row.ipv4_address, row.ipv4_mask)
-        if cidr:
+        if cidr and not (
+            settings is not None
+            and cidr == ignored_rfc1918_wan_cidr(row, settings)
+        ):
             values.add(str(ipaddress.ip_interface(cidr).ip))
         values.update(value for value in row.ipv6_addresses if "/" in value)
     return values
