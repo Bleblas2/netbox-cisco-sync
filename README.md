@@ -265,6 +265,7 @@ PLUGINS_CONFIG = {
     },
 }
 ```
+
 ## First Run
 
 1. Open **Plugins → Cisco Sync → Settings**.
