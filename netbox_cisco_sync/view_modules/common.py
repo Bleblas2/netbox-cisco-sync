@@ -355,6 +355,16 @@ class BulkRefreshInterfacesAction(ObjectAction):
     template_name = "netbox_cisco_sync/buttons/bulk_refresh_interfaces.html"
 
 
+class BulkApplySelectedAction(ObjectAction):
+    """Wspólny przycisk Apply dla zaznaczonych urządzeń z gotowym cache."""
+
+    name = "bulk_apply_selected"
+    label = "Apply selected devices"
+    multi = True
+    permissions_required = {"change"}
+    template_name = "netbox_cisco_sync/buttons/bulk_apply_selected.html"
+
+
 class BulkInterfaceRefreshView(LoginRequiredMixin, View):
     """Zakolejkuj platformowy Refresh zaznaczonych rekordów bez Apply."""
 
@@ -384,6 +394,73 @@ class BulkInterfaceRefreshView(LoginRequiredMixin, View):
             return redirect(active_job.get_absolute_url())
         job = self.job_class.enqueue(user=request.user, config_ids=config_ids)
         messages.success(request, f"Queued interface refresh for {len(config_ids)} {self.source_name} device(s). No Apply will be performed.")
+        return redirect(job.get_absolute_url())
+
+
+class BulkApplySelectedView(LoginRequiredMixin, View):
+    """Zakolejkuj Apply wyłącznie zaznaczonych, włączonych rekordów."""
+
+    model = None
+    filterset_class = None
+    eligible_queryset = None
+    job_class = None
+    job_name = ""
+    competing_job_names = ()
+    competing_job_statuses = None
+    permission_name = ""
+    source_name = ""
+    list_url_name = ""
+
+    def post(self, request):
+        if not request.user.has_perm(self.permission_name):
+            messages.error(
+                request,
+                f"You do not have permission to apply {self.source_name} devices.",
+            )
+            return redirect(self.list_url_name)
+
+        selected = self.model.objects.all()
+        if request.POST.get("_all"):
+            selected = self.filterset_class(request.GET, queryset=selected).qs
+        else:
+            selected = selected.filter(pk__in=request.POST.getlist("pk"))
+        selected_ids = list(selected.values_list("pk", flat=True))
+        if not selected_ids:
+            messages.warning(request, f"Select at least one {self.source_name} device.")
+            return redirect(self.list_url_name)
+
+        eligible = self.eligible_queryset().filter(pk__in=selected_ids)
+        config_ids = list(eligible.values_list("pk", flat=True))
+        if not config_ids:
+            messages.warning(
+                request,
+                f"None of the selected {self.source_name} devices are enabled and mapped to a NetBox Site.",
+            )
+            return redirect(self.list_url_name)
+
+        active_job = active_sync_job(self.job_name)
+        if active_job is None and self.competing_job_names:
+            competing_kwargs = {}
+            if self.competing_job_statuses is not None:
+                competing_kwargs["statuses"] = self.competing_job_statuses
+            active_job = active_sync_job(
+                *self.competing_job_names,
+                **competing_kwargs,
+            )
+        if active_job:
+            messages.warning(
+                request,
+                f"A {self.source_name} Apply job is already queued or running.",
+            )
+            return redirect(active_job.get_absolute_url())
+
+        job = self.job_class.enqueue(user=request.user, config_ids=config_ids)
+        skipped = len(selected_ids) - len(config_ids)
+        suffix = f" {skipped} ineligible selection(s) skipped." if skipped else ""
+        messages.success(
+            request,
+            f"Queued Apply for {len(config_ids)} selected {self.source_name} device(s).{suffix}",
+        )
         return redirect(job.get_absolute_url())
 
 

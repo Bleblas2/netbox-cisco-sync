@@ -24,6 +24,8 @@ from ..models import DeviceVmanageConfig, VmanageSyncConfig
 from ..services import collect_config_details, discover_devices
 
 from .common import (
+    BulkApplySelectedAction,
+    BulkApplySelectedView,
     BulkInterfaceRefreshView,
     BulkRefreshInterfacesAction,
     CombinedDeviceSyncEditView,
@@ -42,7 +44,12 @@ class DeviceVmanageConfigListView(generic.ObjectListView):
     extra_context = {"discovered_source": "vmanage"}
     # Inventory powstaje wyłącznie przez discovery. Nie udostępniamy ręcznego
     # dodawania, importu, zmiany nazw ani masowej edycji rekordów źródłowych.
-    actions = (BulkRefreshInterfacesAction, BulkExport, BulkDelete)
+    actions = (
+        BulkRefreshInterfacesAction,
+        BulkApplySelectedAction,
+        BulkExport,
+        BulkDelete,
+    )
 
 
 @register_model_view(DeviceVmanageConfig, name="bulk_refresh_interfaces", path="refresh-interfaces", detail=False)
@@ -51,6 +58,20 @@ class BulkVmanageInterfaceRefreshView(BulkInterfaceRefreshView):
     filterset_class = filtersets.DeviceVmanageConfigFilterSet
     job_class = BulkVmanageInterfaceRefreshJob
     job_name = VMANAGE_INTERFACE_REFRESH_JOB_NAME
+    permission_name = "netbox_cisco_sync.change_devicevmanageconfig"
+    source_name = "vManage"
+    list_url_name = "plugins:netbox_cisco_sync:devicevmanageconfig_list"
+
+
+@register_model_view(DeviceVmanageConfig, name="bulk_apply_selected", path="apply-selected", detail=False)
+class BulkVmanageApplySelectedView(BulkApplySelectedView):
+    model = DeviceVmanageConfig
+    filterset_class = filtersets.DeviceVmanageConfigFilterSet
+    eligible_queryset = staticmethod(enabled_configs)
+    job_class = BulkVmanageSyncJob
+    job_name = BULK_JOB_NAME
+    competing_job_names = (SCHEDULED_JOB_NAME,)
+    competing_job_statuses = SCHEDULED_JOB_BLOCKING_STATUSES
     permission_name = "netbox_cisco_sync.change_devicevmanageconfig"
     source_name = "vManage"
     list_url_name = "plugins:netbox_cisco_sync:devicevmanageconfig_list"

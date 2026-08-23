@@ -21,7 +21,13 @@ from ..jobs import (
 )
 from ..models import CatalystCenterConfig, DeviceCatalystCenterConfig
 
-from .common import CombinedDeviceSyncEditView, DeviceConfigToggleEnabledView, DeviceEditRedirectView
+from .common import (
+    BulkApplySelectedAction,
+    BulkApplySelectedView,
+    CombinedDeviceSyncEditView,
+    DeviceConfigToggleEnabledView,
+    DeviceEditRedirectView,
+)
 
 
 class BulkRefreshCatalystInterfaces(ObjectAction):
@@ -43,7 +49,12 @@ class DeviceCatalystCenterConfigListView(generic.ObjectListView):
     extra_context = {"discovered_source": "catalyst_center"}
     # Inventory powstaje wyłącznie przez discovery. Lista udostępnia osobne
     # odświeżenie cache, eksport i usuwanie zaznaczonych rekordów pluginu.
-    actions = (BulkRefreshCatalystInterfaces, BulkExport, BulkDelete)
+    actions = (
+        BulkRefreshCatalystInterfaces,
+        BulkApplySelectedAction,
+        BulkExport,
+        BulkDelete,
+    )
 
 
 class BulkCatalystCenterSyncView(LoginRequiredMixin, View):
@@ -128,6 +139,18 @@ class BulkCatalystCenterInterfaceRefreshView(LoginRequiredMixin, View):
             "No Apply will be performed.",
         )
         return redirect(job.get_absolute_url())
+
+
+@register_model_view(DeviceCatalystCenterConfig, name="bulk_apply_selected", path="apply-selected", detail=False)
+class BulkCatalystCenterApplySelectedView(BulkApplySelectedView):
+    model = DeviceCatalystCenterConfig
+    filterset_class = filtersets.DeviceCatalystCenterConfigFilterSet
+    eligible_queryset = staticmethod(enabled_catalyst_configs)
+    job_class = BulkCatalystCenterSyncJob
+    job_name = CATALYST_BULK_JOB_NAME
+    permission_name = "netbox_cisco_sync.change_devicecatalystcenterconfig"
+    source_name = "Catalyst Center"
+    list_url_name = "plugins:netbox_cisco_sync:devicecatalystcenterconfig_list"
 
 
 @register_model_view(DeviceCatalystCenterConfig)

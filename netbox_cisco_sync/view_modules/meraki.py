@@ -22,6 +22,8 @@ from ..models import DeviceMerakiConfig, MerakiConfig
 from ..meraki_services import collect_meraki_config, discover_meraki_devices
 
 from .common import (
+    BulkApplySelectedAction,
+    BulkApplySelectedView,
     BulkInterfaceRefreshView,
     BulkRefreshInterfacesAction,
     CombinedDeviceSyncEditView,
@@ -38,7 +40,12 @@ class DeviceMerakiConfigListView(generic.ObjectListView):
     filterset = filtersets.DeviceMerakiConfigFilterSet
     template_name = "netbox_cisco_sync/devicemerakiconfig_list.html"
     extra_context = {"discovered_source": "meraki"}
-    actions = (BulkRefreshInterfacesAction, BulkExport, BulkDelete)
+    actions = (
+        BulkRefreshInterfacesAction,
+        BulkApplySelectedAction,
+        BulkExport,
+        BulkDelete,
+    )
 
 
 @register_model_view(DeviceMerakiConfig, name="bulk_refresh_interfaces", path="refresh-interfaces", detail=False)
@@ -47,6 +54,18 @@ class BulkMerakiInterfaceRefreshView(BulkInterfaceRefreshView):
     filterset_class = filtersets.DeviceMerakiConfigFilterSet
     job_class = BulkMerakiInterfaceRefreshJob
     job_name = MERAKI_INTERFACE_REFRESH_JOB_NAME
+    permission_name = "netbox_cisco_sync.change_devicemerakiconfig"
+    source_name = "Meraki"
+    list_url_name = "plugins:netbox_cisco_sync:devicemerakiconfig_list"
+
+
+@register_model_view(DeviceMerakiConfig, name="bulk_apply_selected", path="apply-selected", detail=False)
+class BulkMerakiApplySelectedView(BulkApplySelectedView):
+    model = DeviceMerakiConfig
+    filterset_class = filtersets.DeviceMerakiConfigFilterSet
+    eligible_queryset = staticmethod(enabled_meraki_configs)
+    job_class = BulkMerakiSyncJob
+    job_name = MERAKI_BULK_JOB_NAME
     permission_name = "netbox_cisco_sync.change_devicemerakiconfig"
     source_name = "Meraki"
     list_url_name = "plugins:netbox_cisco_sync:devicemerakiconfig_list"
