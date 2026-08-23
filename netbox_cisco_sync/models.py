@@ -110,6 +110,13 @@ class VmanageSyncConfig(NetBoxModel):
         ),
     )
     sync_ipv4 = models.BooleanField(default=True)
+    ignore_rfc1918_wan_ips = models.BooleanField(
+        default=False,
+        help_text=(
+            "Do not create RFC1918 IPv4 addresses on WAN interfaces. "
+            "The interface is still synchronized and the skipped address is added to its description."
+        ),
+    )
     sync_ipv6 = models.BooleanField(default=True)
     sync_mac_addresses = models.BooleanField(default=True)
     set_primary_ips = models.BooleanField(default=True)
@@ -177,6 +184,13 @@ class CatalystCenterConfig(NetBoxModel):
         ),
     )
     sync_ipv4 = models.BooleanField(default=True)
+    ignore_rfc1918_wan_ips = models.BooleanField(
+        default=False,
+        help_text=(
+            "Do not create RFC1918 IPv4 addresses on WAN interfaces. "
+            "The interface is still synchronized and the skipped address is added to its description."
+        ),
+    )
     sync_ipv6 = models.BooleanField(default=False)
     sync_mac_addresses = models.BooleanField(default=False)
     set_primary_ips = models.BooleanField(default=True)
@@ -312,6 +326,13 @@ class MerakiConfig(NetBoxModel):
     sync_interfaces = models.BooleanField(default=True)
     ignore_disabled_interfaces = models.BooleanField(default=False)
     sync_ipv4 = models.BooleanField(default=True)
+    ignore_rfc1918_wan_ips = models.BooleanField(
+        default=False,
+        help_text=(
+            "Do not create RFC1918 IPv4 addresses on WAN interfaces. "
+            "The interface is still synchronized and the skipped address is added to its description."
+        ),
+    )
     sync_ipv6 = models.BooleanField(default=False)
     sync_mac_addresses = models.BooleanField(default=False)
     set_primary_ips = models.BooleanField(default=True)

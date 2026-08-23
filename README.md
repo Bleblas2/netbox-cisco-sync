@@ -79,7 +79,8 @@ Discovery → Site mapping → Enable → Refresh interfaces → Preview → App
 - Filters discovery/import by exact **Family** or **Role** values.
 - Imports management information and collected interfaces made available by the
   connector.
-- Matches the Catalyst `platformId` to a NetBox Device Type `part_number`.
+- Matches the Catalyst `platformId` to a NetBox Device Type `part_number` and
+  creates a Cisco Device Type with that `part_number` only when no match exists.
 - Imports all physical switch interfaces into the single NetBox Device used for
   the logical Catalyst Center device. A reported stack remains one Device with
   the active member serial in `Device.serial`. Remaining serials and the exact
@@ -280,8 +281,10 @@ PLUGINS_CONFIG = {
 9. Verify the resulting NetBox objects and Sync Run.
 10. After validating individual devices, use **Apply all enabled devices**.
 
-For Catalyst Center, create NetBox Device Types whose `part_number` matches the
-source `platformId` before Apply.
+For every source, Device Types are identified by exact `part_number`, not by
+their display model name. Apply reuses an existing matching type. Only when no
+matching `part_number` exists does the plugin create a Cisco Device Type and
+populate both its model and `part_number`.
 
 ## Interface Cache and Selection
 
@@ -304,6 +307,17 @@ Each interface is displayed with a checkbox. Rules in
 `*_ignored_interface_names` and `*_ignored_interface_patterns` do not hide or
 discard collected data. They only make matching interfaces unchecked by
 default. An explicit operator selection takes priority.
+
+Each platform Settings page also provides **Ignore RFC1918 IP on WAN
+interfaces**. When enabled, an IPv4 address from `10.0.0.0/8`,
+`172.16.0.0/12`, or `192.168.0.0/16` is not created as an IPAM `IPAddress` on
+an interface named `WAN`, `WANn`, or `WAN n`. The same rule applies when the
+interface label matches that pattern, including Meraki `Internet N` interfaces
+labelled `WANn`. The Interface is still synchronized and the skipped address
+with its prefix is appended to its description. On vManage, where collected
+interfaces normally have no label, recognition uses the source `ifname`; a
+transport interface such as `GigabitEthernet0/0/0` is not implicitly treated as
+WAN solely because it belongs to VPN 0.
 
 ## Screenshots
 
@@ -352,6 +366,11 @@ The plugin uses read-only API flows including:
 - IPv6 without an explicit prefix is reported and skipped rather than guessed.
 - **Ignore disabled interfaces** skips administratively disabled interfaces and
   their dependent IP, MAC, and FHRP data.
+- **Ignore RFC1918 IP on WAN interfaces** preserves the WAN Interface but skips
+  its RFC1918 `IPAddress`, records the address in the Interface description,
+  and excludes it from Preview counters and primary IPv4 selection.
+- Device Types are reused by exact `part_number`; a new Cisco type with a
+  populated `part_number` is created only when no match exists.
 - The preferred primary IPv4 interface can override the platform fallback.
 - The first assigned global IPv6 address becomes primary IPv6.
 - VRRP data creates a NetBox FHRP group, interface assignment, priority, and VIP.
