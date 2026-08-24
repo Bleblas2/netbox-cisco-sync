@@ -5,6 +5,7 @@ from .client import CatalystCenterClient
 from .collector import (
     collect_device_interfaces,
     collect_inventory,
+    collect_site_device_assignments,
     collect_site_memberships,
     is_stack_device,
     merge_stack_details,
@@ -28,9 +29,17 @@ class CatalystCenterConnector(BaseConnector):
     def collect_inventory(self):
         self.connect()
         # Membership jest pobierany per Building, a następnie łączony z listą
-        # urządzeń stabilnym numerem seryjnym przed filtrowaniem Family/Role.
+        # urządzeń po deviceId. Starsze CCC używają fallbacku po serialu.
         sites = self.client.get_sites()
-        memberships = collect_site_memberships(self.client, sites)
+        site_device_assignments = collect_site_device_assignments(
+            self.client,
+            sites,
+        )
+        memberships = (
+            collect_site_memberships(self.client, sites)
+            if site_device_assignments is None
+            else {}
+        )
         devices = self.client.get_devices()
         enriched_devices = []
         for raw in devices:
@@ -44,6 +53,7 @@ class CatalystCenterConnector(BaseConnector):
             enriched_devices,
             memberships,
             self.settings.import_device_roles,
+            site_device_assignments=site_device_assignments,
         )
 
     def collect_device(self, inventory_device):

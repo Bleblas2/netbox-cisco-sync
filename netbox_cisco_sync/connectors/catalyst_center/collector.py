@@ -61,7 +61,36 @@ def collect_site_memberships(client, sites):
     return memberships
 
 
-def collect_inventory(raw_devices, site_memberships, allowed_roles=""):
+def collect_site_device_assignments(client, sites):
+    """Zbuduj mapę deviceId → Building przez nowszy endpoint Site Design."""
+    assignments = {}
+    for site in sites:
+        if not is_building_site(site):
+            continue
+        rows = client.get_site_assigned_devices(site.get("id"))
+        if rows is None:
+            return None
+        latitude, longitude = building_coordinates(site)
+        building = {
+            "id": str(site.get("id") or ""),
+            "name": str(site.get("name") or ""),
+            "latitude": latitude,
+            "longitude": longitude,
+        }
+        for row in rows:
+            device_id = str(row.get("deviceId") or "").strip()
+            if device_id:
+                assignments[device_id] = building
+    return assignments
+
+
+def collect_inventory(
+    raw_devices,
+    site_memberships,
+    allowed_roles="",
+    *,
+    site_device_assignments=None,
+):
     """Zachowaj wspierane urządzenia zgodne z filtrem Family lub Role."""
     allowed = {
         value.strip().casefold()
@@ -69,7 +98,10 @@ def collect_inventory(raw_devices, site_memberships, allowed_roles=""):
         if value.strip()
     }
     return [
-        parse_device(row, _device_site(row, site_memberships))
+        parse_device(
+            row,
+            _device_site(row, site_memberships, site_device_assignments),
+        )
         for row in raw_devices
         if str(row.get("deviceSupportLevel") or "").casefold() == "supported"
         and (
@@ -80,8 +112,13 @@ def collect_inventory(raw_devices, site_memberships, allowed_roles=""):
     ]
 
 
-def _device_site(raw, site_memberships):
-    """Znajdź Building po dowolnym serialu logicznego urządzenia lub stacka."""
+def _device_site(raw, site_memberships, site_device_assignments=None):
+    """Znajdź Building najpierw po deviceId, a następnie po serialu."""
+    device_id = str(raw.get("id") or "").strip()
+    if device_id and site_device_assignments:
+        matched = site_device_assignments.get(device_id)
+        if matched is not None:
+            return matched
     serials = _source_values(raw.get("serialNumbers") or raw.get("serialNumber"))
     return next(
         (site_memberships[serial] for serial in serials if serial in site_memberships),
