@@ -6,7 +6,7 @@ from dcim.models import Site
 from .choices import MatchMethodChoices
 from .connectors.meraki import MerakiConnector
 from .dto import CollectedDevice
-from .matcher import match_site
+from .matcher import match_site, site_prefix_bindings
 from .models import DeviceMerakiConfig, MerakiConfig
 from .plugin_settings import plugin_setting
 from .sync.interfaces import filter_collected_data
@@ -24,6 +24,7 @@ def discover_meraki_devices():
         raise RuntimeError("Meraki integration is disabled in Settings.")
     devices = MerakiConnector(settings).connect().collect_inventory()
     sites = list(Site.objects.all())
+    prefix_bindings = site_prefix_bindings(sites)
     created = updated = 0
     for row in devices:
         config = DeviceMerakiConfig.objects.filter(serial_number=row.serial_number).first()
@@ -47,6 +48,7 @@ def discover_meraki_devices():
                 sites,
                 settings.gps_max_distance_km,
                 custom_field_name=plugin_setting("meraki_site_id_field"),
+                prefix_bindings=prefix_bindings,
             )
             config.netbox_site = site
             config.match_method = method

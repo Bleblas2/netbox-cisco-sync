@@ -85,9 +85,12 @@ Discovery → Site mapping → Enable → Refresh interfaces → Preview → App
   creates a Cisco Device Type with that `part_number` only when no match exists.
 - Imports all physical switch interfaces into the single NetBox Device used for
   the logical Catalyst Center device. A reported stack remains one Device with
-  the active member serial in `Device.serial`. Remaining serials and the exact
-  Catalyst `stackSwitchInfo` payload are stored in the `SwitchStackSerials` and
+  the active member serial in `Device.serial`. The complete member serial list,
+  including the active member, and the exact Catalyst `stackSwitchInfo` payload are stored in the `SwitchStackSerials` and
   `SwitchStackInfo` Device Custom Fields, visible only when populated.
+  Stack member details are read from the Catalyst Center per-device stack API.
+  The JSON stores each member's number, priority, role, serial number, and
+  platform ID in a stable format.
 
 ### Cisco Meraki Dashboard
 
@@ -114,14 +117,19 @@ platform-specific sequence:
 
 | Platform | Matching order |
 |---|---|
-| vManage | `SdwanSiteId` custom field → normalized Site name → nearest unique GPS match |
-| Catalyst Center | normalized Building/Site name → nearest unique GPS match |
-| Meraki Dashboard | `MerakiSiteId` custom field → normalized Network/Site name → nearest unique GPS match |
+| vManage | `SdwanSiteId` custom field → normalized Site name → nearest unique GPS match → primary IP in a Site-scoped Prefix |
+| Catalyst Center | normalized Building/Site name → nearest unique GPS match → management IP in a Site-scoped Prefix |
+| Meraki Dashboard | `MerakiSiteId` custom field → normalized Network/Site name → nearest unique GPS match → management IP in a Site-scoped Prefix |
 
 Name matching replaces `_` and `-` with spaces, collapses whitespace, and
 compares values case-insensitively. GPS matching succeeds only when the nearest
 Site is unique and within the configured distance. Ambiguous devices remain
 unmatched for manual review.
+
+As the final fallback, the source primary/management IP is compared with NetBox
+Prefixes scoped directly to a Site. The most specific matching Prefix wins,
+including a broader Site-scoped parent when a more specific child has no Site.
+Equally specific matches pointing to different Sites remain unmatched.
 
 Meraki Discovery compares the Dashboard Network ID with `MerakiSiteId`, which
 is also maintained during Apply. vManage uses `SdwanSiteId`. The identifiers

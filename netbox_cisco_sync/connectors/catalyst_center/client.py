@@ -70,6 +70,31 @@ class CatalystCenterClient:
             f"/dna/intent/api/v1/interface/network-device/{device_id}"
         )
 
+    def get_device_stack(self, device_id):
+        """Pobierz szczegóły członków stacka dla jednego urządzenia."""
+        paths = (
+            f"/dna/intent/api/v1/network-device/{device_id}/stack",
+            f"/api/v1/network-device/{device_id}/stack",
+        )
+        for index, path in enumerate(paths):
+            response = self._request("get", path)
+            if response.status_code in {204, 404} and index < len(paths) - 1:
+                continue
+            if response.status_code in {204, 404}:
+                return {}
+            if not response.ok:
+                snippet = response.text[:300].replace("\n", " ")
+                raise CatalystCenterError(
+                    f"GET {path} failed (HTTP {response.status_code}): {snippet}"
+                )
+            try:
+                payload = response.json()
+            except ValueError as exc:
+                raise CatalystCenterError(f"GET {path} did not return JSON.") from exc
+            result = payload.get("response", {}) if isinstance(payload, dict) else {}
+            return result if isinstance(result, dict) else {}
+        return {}
+
     def _response(self, path):
         # Endpointy Intent API opakowują właściwą listę w polu ``response``.
         payload = self._json(path)

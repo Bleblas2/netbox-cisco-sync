@@ -6,6 +6,8 @@ from .collector import (
     collect_device_interfaces,
     collect_inventory,
     collect_site_memberships,
+    is_stack_device,
+    merge_stack_details,
 )
 
 
@@ -29,8 +31,17 @@ class CatalystCenterConnector(BaseConnector):
         # urządzeń stabilnym numerem seryjnym przed filtrowaniem Family/Role.
         sites = self.client.get_sites()
         memberships = collect_site_memberships(self.client, sites)
+        devices = self.client.get_devices()
+        enriched_devices = []
+        for raw in devices:
+            if is_stack_device(raw):
+                raw = merge_stack_details(
+                    raw,
+                    self.client.get_device_stack(raw.get("id")),
+                )
+            enriched_devices.append(raw)
         return collect_inventory(
-            self.client.get_devices(),
+            enriched_devices,
             memberships,
             self.settings.import_device_roles,
         )

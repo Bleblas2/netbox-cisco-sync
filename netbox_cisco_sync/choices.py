@@ -8,6 +8,7 @@ class MatchMethodChoices(ChoiceSet):
     CUSTOM_FIELD = "custom_field"
     NAME = "name"
     GPS = "gps"
+    PRIMARY_IP = "primary_ip"
     UNMATCHED = "unmatched"
 
     CHOICES = (
@@ -15,6 +16,7 @@ class MatchMethodChoices(ChoiceSet):
         (CUSTOM_FIELD, "SdwanSiteId", "green"),
         (NAME, "Site name", "cyan"),
         (GPS, "GPS", "purple"),
+        (PRIMARY_IP, "Primary IP prefix", "indigo"),
         (UNMATCHED, "Unmatched", "orange"),
     )
 

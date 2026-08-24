@@ -6,7 +6,7 @@ from dcim.models import Site
 
 from .choices import MatchMethodChoices
 from .connectors.vmanage import VmanageConnector
-from .matcher import match_site
+from .matcher import match_site, site_prefix_bindings
 from .models import DeviceVmanageConfig, VmanageSyncConfig
 from .interface_cache import (
     collected_device_from_cache,
@@ -25,6 +25,7 @@ def discover_devices():
     # Site pobieramy raz. Dopasowanie wielu urządzeń nie powinno wykonywać osobnego
     # zapytania do bazy dla każdego Edge.
     sites = list(Site.objects.all())
+    prefix_bindings = site_prefix_bindings(sites)
     created = updated = 0
 
     for device in devices:
@@ -49,7 +50,12 @@ def discover_devices():
 
         # Ręczny wybór administratora zawsze ma pierwszeństwo nad kolejnym discovery.
         if not config.manual_site_override:
-            site, method = match_site(device, sites, settings.gps_max_distance_km)
+            site, method = match_site(
+                device,
+                sites,
+                settings.gps_max_distance_km,
+                prefix_bindings=prefix_bindings,
+            )
             config.netbox_site = site
             config.match_method = method
         elif config.netbox_site_id:
