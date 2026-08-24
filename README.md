@@ -78,6 +78,9 @@ Discovery → Site mapping → Enable → Refresh interfaces → Preview → App
 ### Cisco Catalyst Center
 
 - Discovers supported network devices and their Building membership.
+- Resolves Building membership primarily by Catalyst `deviceId` through the
+  paginated assigned-to-Site API, including devices assigned to a Floor; older
+  Catalyst Center versions fall back to membership matching by serial number.
 - Filters discovery/import by exact **Family** or **Role** values.
 - Imports management information and collected interfaces made available by the
   connector.

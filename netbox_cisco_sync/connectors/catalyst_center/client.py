@@ -64,6 +64,41 @@ class CatalystCenterClient:
                 rows.extend(group.get("response", []))
         return rows
 
+    def get_site_assigned_devices(self, site_id):
+        """Pobierz stronicowaną listę urządzeń Building wraz z jego Floor."""
+        path = "/dna/intent/api/v1/networkDevices/assignedToSite"
+        offset = 1
+        limit = 500
+        rows = []
+        while True:
+            response = self._request(
+                "get",
+                path,
+                params={"siteId": site_id, "offset": offset, "limit": limit},
+            )
+            # Starsze wersje CCC nie mają tego endpointu. Connector przejdzie
+            # wtedy do historycznego membership mapowanego po serialu.
+            if response.status_code in {404, 405, 501}:
+                return None
+            if response.status_code == 204:
+                return rows
+            if not response.ok:
+                snippet = response.text[:300].replace("\n", " ")
+                raise CatalystCenterError(
+                    f"GET {path} failed (HTTP {response.status_code}): {snippet}"
+                )
+            try:
+                payload = response.json()
+            except ValueError as exc:
+                raise CatalystCenterError(f"GET {path} did not return JSON.") from exc
+            page = payload.get("response", []) if isinstance(payload, dict) else []
+            if not isinstance(page, list):
+                page = []
+            rows.extend(row for row in page if isinstance(row, dict))
+            if len(page) < limit:
+                return rows
+            offset += len(page)
+
     def get_device_interfaces(self, device_id):
         """Pobierz interfejsy raportowane dla jednego urządzenia sieciowego."""
         return self._response(
