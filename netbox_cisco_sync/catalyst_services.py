@@ -8,7 +8,7 @@ from dcim.models import Site
 from .choices import MatchMethodChoices
 from .connectors.catalyst_center import CatalystCenterConnector
 from .connectors.catalyst_center.collector import parse_device
-from .matcher import match_site
+from .matcher import match_site, site_prefix_bindings
 from .models import CatalystCenterConfig, DeviceCatalystCenterConfig
 from .interface_cache import (
     collected_device_from_cache,
@@ -23,6 +23,7 @@ def discover_catalyst_devices():
         raise RuntimeError("Catalyst Center integration is disabled in Settings.")
     devices = CatalystCenterConnector(settings).connect().collect_inventory()
     sites = list(Site.objects.all())
+    prefix_bindings = site_prefix_bindings(sites)
     created = updated = 0
     for row in devices:
         config = DeviceCatalystCenterConfig.objects.filter(catalyst_id=row.uuid).first()
@@ -51,6 +52,7 @@ def discover_catalyst_devices():
                 sites,
                 settings.gps_max_distance_km,
                 use_custom_field=False,
+                prefix_bindings=prefix_bindings,
             )
             config.netbox_site = site
             config.match_method = method

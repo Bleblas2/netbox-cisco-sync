@@ -7,7 +7,7 @@ STACK_INFO_FIELD = "SwitchStackInfo"
 
 
 def sync_switch_stack_fields(device, data, result):
-    """Zapisz pozostałe seriale i pełny stackSwitchInfo na Device."""
+    """Zapisz wszystkie seriale członków i pełny stackSwitchInfo na Device."""
     from django.contrib.contenttypes.models import ContentType
     from dcim.models import Device
     from extras.models import CustomField

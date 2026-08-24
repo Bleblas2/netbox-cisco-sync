@@ -99,9 +99,13 @@ def parse_device(raw, site=None):
     stack_info = normalize_stack_switch_info(raw.get("stackSwitchInfo"))
     master_serial = stack_master_serial(stack_info, serial_numbers)
     stack_serials = _unique_values([
-        *serial_numbers,
         *(row["serialNumber"] for row in stack_info),
+        *serial_numbers,
     ])
+    # Dla stacka Custom Field przechowuje kompletną listę członków, również
+    # ACTIVE zapisanego równolegle w Device.serial. Pojedynczy switch nie jest
+    # prezentowany jako jednoelementowy stack.
+    is_stack = len(stack_serials) > 1 or len(stack_info) > 1
     platform_id = normalize_platform_id(platform_source)
     interfaces = []
     if management_ip:
@@ -131,11 +135,32 @@ def parse_device(raw, site=None):
         status="active" if str(raw.get("reachabilityStatus") or "").casefold() == "reachable" else "failed",
         source_role=str(raw.get("role") or "").strip(),
         source_family=str(raw.get("family") or "").strip(),
-        switch_stack_serials=[
-            serial for serial in stack_serials if serial != master_serial
-        ],
+        switch_stack_serials=stack_serials if is_stack else [],
         switch_stack_info=stack_info,
     )
+
+
+def is_stack_device(raw):
+    """Rozpoznaj rekord wymagający osobnego odczytu szczegółów stacka."""
+    if raw.get("stackDevice") is True:
+        return True
+    serials = _source_values(raw.get("serialNumbers") or raw.get("serialNumber"))
+    return len(serials) > 1
+
+
+def merge_stack_details(raw, details):
+    """Połącz odpowiedź endpointu stacka z rekordem inventory bez mutacji wejścia."""
+    merged = dict(raw)
+    stack_info = details.get("stackSwitchInfo") if isinstance(details, dict) else None
+    if isinstance(stack_info, list):
+        merged["stackSwitchInfo"] = stack_info
+        serials = _unique_values([
+            *(row.get("serialNumber") for row in stack_info if isinstance(row, dict)),
+            *_source_values(raw.get("serialNumbers") or raw.get("serialNumber")),
+        ])
+        if serials:
+            merged["serialNumbers"] = serials
+    return merged
 
 
 def collect_device_interfaces(device, raw_interfaces):
@@ -263,7 +288,7 @@ def _unique_values(values):
 
 
 def normalize_stack_switch_info(value):
-    """Zachowaj stabilny podzbiór pól formatu stackSwitchInfo Catalyst Center."""
+    """Zachowaj stabilny format JSON członków stacka Catalyst Center."""
     rows = value if isinstance(value, list) else []
     result = []
     for row in rows:
