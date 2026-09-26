@@ -39,7 +39,9 @@ Discovery → Site mapping → Enable → Refresh interfaces → Preview → App
 
 - Discovers devices without creating NetBox inventory automatically.
 - Maps discovered devices to existing NetBox Sites.
-- Lets an operator enable individual devices and select interfaces.
+- Lets an operator enable individual devices, enable selected devices in bulk,
+  and select interfaces. Bulk actions and the per-row Enabled button preserve
+  device selection when returning to the inventory list.
 - Builds an exact Preview snapshot before Apply.
 - Creates or updates NetBox Devices, Interfaces, IP addresses, MAC addresses,
   primary IP assignments, and FHRP/VRRP objects when supported by the source.
@@ -289,15 +291,23 @@ PLUGINS_CONFIG = {
 5. Review automatic Site matches and set manual overrides where necessary.
 6. Select one or more devices and use **Refresh interfaces for selected
    devices**, or refresh a single device from its Edit/Preview page.
-7. Open the device, select interfaces, save the selection, and enable it.
-8. Inspect Preview and Apply the stored snapshot.
-9. Verify the resulting NetBox objects and Sync Run.
-10. After validating individual devices, use **Apply all enabled devices**.
+7. Select one or more devices and choose **Enable selected**, or enable a
+   single device with its Enabled/Disabled row button. The selected rows remain
+   selected after the action.
+8. Open a device, select interfaces, and save the selection.
+9. Inspect Preview and Apply the stored snapshot.
+10. Verify the resulting NetBox objects and Sync Run.
+11. After validating individual devices, use **Apply all enabled devices**.
 
-Alternatively, select specific enabled and Site-mapped records in any platform
-inventory and choose **Apply selected devices** directly below the interface
-refresh action. This uses only their existing interface cache and does not query
-the source platform.
+In any platform inventory, select devices and choose **Enable selected** to
+turn on sync for those records. The action is safe to repeat and preserves the
+selection when the list reloads. The per-row Enabled/Disabled button also keeps
+the current selection.
+
+Alternatively, select specific enabled and Site-mapped records and choose
+**Apply selected devices** directly below the interface refresh action. This
+uses only their existing interface cache and does not query the source platform.
+Selections are retained after these bulk actions as well.
 
 For every source, Device Types are identified by exact `part_number`, not by
 their display model name. Apply reuses an existing matching type. Only when no

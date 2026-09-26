@@ -22,3 +22,8 @@
   {% include 'netbox_cisco_sync/inc/discovery_overlay.html' with discovery_source_name='vManage' %}
   {% include 'netbox_cisco_sync/inc/interface_refresh_overlay.html' with interface_source_name='vManage' %}
 {% endblock %}
+
+{% block content %}
+  {{ block.super }}
+  {% include 'netbox_cisco_sync/inc/preserve_device_selection.html' %}
+{% endblock %}

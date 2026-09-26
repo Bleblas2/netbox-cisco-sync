@@ -26,6 +26,8 @@ from ..services import collect_config_details, discover_devices
 from .common import (
     BulkApplySelectedAction,
     BulkApplySelectedView,
+    BulkEnableSelectedAction,
+    BulkEnableSelectedView,
     BulkInterfaceRefreshView,
     BulkRefreshInterfacesAction,
     CombinedDeviceSyncEditView,
@@ -47,6 +49,7 @@ class DeviceVmanageConfigListView(generic.ObjectListView):
     actions = (
         BulkRefreshInterfacesAction,
         BulkApplySelectedAction,
+        BulkEnableSelectedAction,
         BulkExport,
         BulkDelete,
     )
@@ -162,6 +165,15 @@ class DeviceVmanageConfigBulkDeleteView(generic.BulkDeleteView):
     """Zbiorczo usuń zaznaczone rekordy inventory vManage."""
     queryset = DeviceVmanageConfig.objects.all()
     table = tables.DeviceVmanageConfigTable
+
+
+@register_model_view(DeviceVmanageConfig, name="bulk_enable_selected", path="enable-selected", detail=False)
+class DeviceVmanageConfigBulkEnableSelectedView(BulkEnableSelectedView):
+    model = DeviceVmanageConfig
+    filterset_class = filtersets.DeviceVmanageConfigFilterSet
+    permission_name = "netbox_cisco_sync.change_devicevmanageconfig"
+    source_name = "vManage"
+    list_url_name = "plugins:netbox_cisco_sync:devicevmanageconfig_list"
 
 
 @register_model_view(DeviceVmanageConfig, name="toggle_enabled", path="toggle-enabled")

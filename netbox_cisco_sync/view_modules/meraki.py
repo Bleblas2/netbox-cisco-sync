@@ -24,6 +24,8 @@ from ..meraki_services import collect_meraki_config, discover_meraki_devices
 from .common import (
     BulkApplySelectedAction,
     BulkApplySelectedView,
+    BulkEnableSelectedAction,
+    BulkEnableSelectedView,
     BulkInterfaceRefreshView,
     BulkRefreshInterfacesAction,
     CombinedDeviceSyncEditView,
@@ -43,6 +45,7 @@ class DeviceMerakiConfigListView(generic.ObjectListView):
     actions = (
         BulkRefreshInterfacesAction,
         BulkApplySelectedAction,
+        BulkEnableSelectedAction,
         BulkExport,
         BulkDelete,
     )
@@ -116,6 +119,15 @@ class DeviceMerakiConfigDeleteView(generic.ObjectDeleteView):
 class DeviceMerakiConfigBulkDeleteView(generic.BulkDeleteView):
     queryset = DeviceMerakiConfig.objects.all()
     table = tables.DeviceMerakiConfigTable
+
+
+@register_model_view(DeviceMerakiConfig, name="bulk_enable_selected", path="enable-selected", detail=False)
+class DeviceMerakiConfigBulkEnableSelectedView(BulkEnableSelectedView):
+    model = DeviceMerakiConfig
+    filterset_class = filtersets.DeviceMerakiConfigFilterSet
+    permission_name = "netbox_cisco_sync.change_devicemerakiconfig"
+    source_name = "Meraki"
+    list_url_name = "plugins:netbox_cisco_sync:devicemerakiconfig_list"
 
 
 @register_model_view(DeviceMerakiConfig, name="toggle_enabled", path="toggle-enabled")

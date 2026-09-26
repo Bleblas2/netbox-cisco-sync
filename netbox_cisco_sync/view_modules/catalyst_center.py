@@ -24,6 +24,8 @@ from ..models import CatalystCenterConfig, DeviceCatalystCenterConfig
 from .common import (
     BulkApplySelectedAction,
     BulkApplySelectedView,
+    BulkEnableSelectedAction,
+    BulkEnableSelectedView,
     CombinedDeviceSyncEditView,
     DeviceConfigToggleEnabledView,
     DeviceEditRedirectView,
@@ -52,6 +54,7 @@ class DeviceCatalystCenterConfigListView(generic.ObjectListView):
     actions = (
         BulkRefreshCatalystInterfaces,
         BulkApplySelectedAction,
+        BulkEnableSelectedAction,
         BulkExport,
         BulkDelete,
     )
@@ -203,6 +206,15 @@ class DeviceCatalystCenterConfigBulkDeleteView(generic.BulkDeleteView):
     """Zbiorczo usuń zaznaczone rekordy inventory Catalyst Center."""
     queryset = DeviceCatalystCenterConfig.objects.all()
     table = tables.DeviceCatalystCenterConfigTable
+
+
+@register_model_view(DeviceCatalystCenterConfig, name="bulk_enable_selected", path="enable-selected", detail=False)
+class DeviceCatalystCenterConfigBulkEnableSelectedView(BulkEnableSelectedView):
+    model = DeviceCatalystCenterConfig
+    filterset_class = filtersets.DeviceCatalystCenterConfigFilterSet
+    permission_name = "netbox_cisco_sync.change_devicecatalystcenterconfig"
+    source_name = "Catalyst Center"
+    list_url_name = "plugins:netbox_cisco_sync:devicecatalystcenterconfig_list"
 
 
 @register_model_view(DeviceCatalystCenterConfig, name="toggle_enabled", path="toggle-enabled")

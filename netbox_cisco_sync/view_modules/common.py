@@ -365,6 +365,49 @@ class BulkApplySelectedAction(ObjectAction):
     template_name = "netbox_cisco_sync/buttons/bulk_apply_selected.html"
 
 
+class BulkEnableSelectedAction(ObjectAction):
+    """Wspólna akcja włączająca synchronizację zaznaczonych urządzeń."""
+
+    name = "bulk_enable_selected"
+    label = "Enable selected"
+    multi = True
+    permissions_required = {"change"}
+    template_name = "netbox_cisco_sync/buttons/bulk_enable_selected.html"
+
+
+class BulkEnableSelectedView(LoginRequiredMixin, View):
+    """Włącz synchronizację wyłącznie zaznaczonych rekordów inventory."""
+
+    model = None
+    filterset_class = None
+    permission_name = ""
+    source_name = ""
+    list_url_name = ""
+
+    def post(self, request):
+        if not request.user.has_perm(self.permission_name):
+            messages.error(request, f"You do not have permission to enable {self.source_name} devices.")
+            return redirect(self.list_url_name)
+        queryset = self.model.objects.all()
+        if request.POST.get("_all") and self.filterset_class:
+            queryset = self.filterset_class(request.GET, queryset=queryset).qs
+        else:
+            queryset = queryset.filter(pk__in=request.POST.getlist("pk"))
+        ids = list(queryset.values_list("pk", flat=True))
+        if not ids:
+            messages.warning(request, f"Select at least one {self.source_name} device.")
+            return redirect(self.list_url_name)
+        count = self.model.objects.filter(pk__in=ids, enabled=False).update(enabled=True)
+        messages.success(request, f"Enabled sync for {count} {self.source_name} device(s).")
+        return self._return_to_list(request)
+
+    def _return_to_list(self, request):
+        return_url = request.META.get("HTTP_REFERER", "")
+        if return_url and url_has_allowed_host_and_scheme(return_url, allowed_hosts={request.get_host()}):
+            return redirect(return_url)
+        return redirect(self.list_url_name)
+
+
 class BulkInterfaceRefreshView(LoginRequiredMixin, View):
     """Zakolejkuj platformowy Refresh zaznaczonych rekordów bez Apply."""
 

@@ -45,3 +45,8 @@
     });
   </script>
 {% endblock %}
+
+{% block content %}
+  {{ block.super }}
+  {% include 'netbox_cisco_sync/inc/preserve_device_selection.html' %}
+{% endblock %}
