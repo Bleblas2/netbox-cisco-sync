@@ -2,7 +2,7 @@
 
 from netbox.plugins import PluginConfig
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 DEFAULT_PLUGIN_SETTINGS = {
     # Ustawienia vManage są oddzielone od innych źródeł, aby dodanie kolejnej
