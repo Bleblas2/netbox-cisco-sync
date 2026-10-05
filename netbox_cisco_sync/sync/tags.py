@@ -2,7 +2,7 @@
 
 
 def tag_synced_objects(objects, configured_tags):
-    """Dodaj tagi z Settings do nowych i aktualizowanych obiektów obsługujących tags."""
+    """Dodaj tagi z Settings bez usuwania istniejących; zawsze pomijaj Site."""
     tags = list(configured_tags)
     if not tags:
         return 0
@@ -13,6 +13,8 @@ def tag_synced_objects(objects, configured_tags):
         # Ten sam obiekt może wystąpić na listach created oraz synced. Stabilny
         # klucz model+PK zapobiega powtarzaniu operacji M2M.
         meta = getattr(obj, "_meta", None)
+        if getattr(meta, "label_lower", None) == "dcim.site":
+            continue
         identity = (
             getattr(meta, "label_lower", type(obj).__name__),
             getattr(obj, "pk", id(obj)),
