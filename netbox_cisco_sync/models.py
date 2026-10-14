@@ -462,6 +462,7 @@ class DiscoveredInterface(NetBoxModel):
     untagged_vlan = models.PositiveIntegerField(null=True, blank=True)
     tagged_vlans = models.JSONField(default=list, blank=True)
     bridge_name = models.CharField(max_length=255, blank=True)
+    lag_name = models.CharField(max_length=255, blank=True)
     selected = models.BooleanField(default=True)
     present = models.BooleanField(default=True)
     last_seen = models.DateTimeField(null=True, blank=True)

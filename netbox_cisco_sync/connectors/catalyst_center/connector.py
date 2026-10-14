@@ -1,7 +1,7 @@
 """Implementacja wspólnego kontraktu źródła dla Catalyst Center."""
 
 from ..base import BaseConnector
-from .client import CatalystCenterClient
+from .client import CatalystCenterClient, CatalystCenterError
 from .collector import (
     collect_device_interfaces,
     collect_inventory,
@@ -9,6 +9,7 @@ from .collector import (
     collect_site_memberships,
     is_stack_device,
     merge_stack_details,
+    merge_port_channel_members,
 )
 
 
@@ -58,7 +59,18 @@ class CatalystCenterConnector(BaseConnector):
 
     def collect_device(self, inventory_device):
         self.connect()
-        return collect_device_interfaces(
-            inventory_device,
-            self.client.get_device_interfaces(inventory_device.uuid),
-        )
+        raw_interfaces = self.client.get_device_interfaces(inventory_device.uuid)
+        device = collect_device_interfaces(inventory_device, raw_interfaces)
+        raw_by_name = {
+            str(row.get("portName") or row.get("name") or "").strip().casefold(): row
+            for row in raw_interfaces or []
+        }
+        for lag in device.interfaces:
+            if lag.interface_type != "lag":
+                continue
+            interface_id = raw_by_name[lag.name.casefold()].get("id")
+            if not interface_id:
+                raise CatalystCenterError(f"Port channel {lag.name} has no interface ID.")
+            details = self.client.get_port_channel(device.uuid, interface_id)
+            merge_port_channel_members(device, lag, details)
+        return device

@@ -1,9 +1,11 @@
 """Normalizacja inventory Catalyst Center do wspólnego DTO synchronizacji."""
 
 import ipaddress
+import re
 
 from ...dto import CollectedDevice, CollectedInterface
 from ...plugin_settings import plugin_setting
+from .client import CatalystCenterError
 
 DEVICE_DOMAIN_SUFFIX = ".raben-group.com"
 CORE_ROLE_NAME = "Core Switch"
@@ -214,9 +216,11 @@ def collect_device_interfaces(device, raw_interfaces):
             or str(raw.get("portType") or "").casefold() == "ethernet svi"
         )
         is_physical = str(raw.get("interfaceType") or "").casefold() == "physical"
+        is_lag = bool(re.fullmatch(r"(?:port-?channel|po)\d+", name, re.IGNORECASE))
         if not name or not (
             (is_l3 and (ipv4_address or addresses))
             or is_physical
+            or is_lag
         ):
             continue
         speed_mbps = _speed_mbps(raw.get("speed"))
@@ -224,9 +228,11 @@ def collect_device_interfaces(device, raw_interfaces):
             name=name,
             description=str(raw.get("description") or ""),
             interface_type=(
-                "virtual"
-                if str(raw.get("interfaceType") or "").casefold() == "virtual"
-                else _physical_interface_type(name, speed_mbps)
+                "lag" if is_lag else (
+                    "virtual"
+                    if str(raw.get("interfaceType") or "").casefold() == "virtual"
+                    else _physical_interface_type(name, speed_mbps)
+                )
             ),
             admin_up=str(raw.get("adminStatus") or "").casefold() == "up",
             oper_up=str(raw.get("status") or "").casefold() == "up",
@@ -239,8 +245,10 @@ def collect_device_interfaces(device, raw_interfaces):
             mode=str(raw.get("portMode") or "").casefold(),
             untagged_vlan=_vlan_id(
                 raw.get("vlanId")
-                or raw.get("nativeVlanId")
-                or raw.get("nativeVlan")
+                if str(raw.get("portMode") or "").casefold() == "access"
+                else raw.get("nativeVlanId") or raw.get("nativeVlan")
+                if str(raw.get("portMode") or "").casefold() == "trunk"
+                else None
             ),
             tagged_vlans=_vlan_ids(
                 raw.get("allowedVlanIds")
@@ -257,6 +265,27 @@ def collect_device_interfaces(device, raw_interfaces):
         if row.name != "Management" or row.ipv4_address not in real_addresses
     ]
     device.interfaces.extend(collected)
+    return device
+
+
+def merge_port_channel_members(device, lag, details):
+    """Powiąż wyłącznie fizyczne porty wskazane przez endpoint szczegółów LAG."""
+    if details.get("networkDeviceId") != device.uuid or str(details.get("name") or "").casefold() != lag.name.casefold():
+        raise CatalystCenterError(f"Port channel response does not match {lag.name} or device.")
+    members = details.get("interfaces")
+    if members is None:
+        return device
+    if not isinstance(members, list):
+        raise CatalystCenterError(f"Invalid member list for {lag.name}.")
+    by_name = {row.name.casefold(): row for row in device.interfaces}
+    for member in members:
+        name = str(member.get("name") or "") if isinstance(member, dict) else ""
+        row = by_name.get(name.casefold())
+        if row is None or row.interface_type in {"lag", "virtual", "bridge", "cisco-stackwise"}:
+            raise CatalystCenterError(f"Physical member {name} of {lag.name} was not found in inventory.")
+        if row.lag_name and row.lag_name != lag.name:
+            raise CatalystCenterError(f"Interface {name} belongs to multiple port channels.")
+        row.lag_name = lag.name
     return device
 
 
@@ -379,7 +408,8 @@ def _physical_interface_type(name, speed_mbps):
 
 def _vlan_id(value):
     try:
-        return int(value) if value not in (None, "") else None
+        vid = int(value) if value not in (None, "") else None
+        return vid if vid is not None and 1 <= vid <= 4094 else None
     except (TypeError, ValueError):
         return None
 

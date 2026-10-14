@@ -23,6 +23,7 @@ class CollectedInterface:
     untagged_vlan: int | None = None
     tagged_vlans: list[int] = field(default_factory=list)
     bridge_name: str = ""
+    lag_name: str = ""
     # None oznacza brak zapisanej decyzji i użycie domyślnych reguł platformy.
     selected: bool | None = None
     present: bool = True

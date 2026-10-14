@@ -7,6 +7,7 @@ from django.contrib.contenttypes.models import ContentType
 from ..plugin_settings import platform_plugin_setting
 from .result import record_synced_object, update_fields
 from .wan import effective_interface_description
+from .vlans import sync_interface_vlans
 
 
 NOMINAL_INTERFACE_SPEEDS_MBPS = {
@@ -43,6 +44,7 @@ def sync_interfaces(device, rows, settings, result, config=None):
         ),
         key=lambda row: (
             str(row.interface_type or "").casefold() != "bridge",
+            interface_type(row, settings) != "lag",
             "." in row.name,
             row.name.casefold(),
         ),
@@ -71,6 +73,16 @@ def sync_interfaces(device, rows, settings, result, config=None):
             raise ValueError(
                 f"Interface {row.bridge_name} required by {row.name} is not a bridge."
             )
+        lag_name = getattr(row, "lag_name", "")
+        lag = (
+            interfaces.get(lag_name)
+            or Interface.objects.filter(device=device, name=lag_name).first()
+            if lag_name else None
+        )
+        if lag_name and (lag is None or lag.type != "lag"):
+            raise ValueError(
+                f"LAG interface {lag_name} required by {row.name} does not exist or is not a LAG."
+            )
         values = {
             "type": interface_type(row, settings),
             "enabled": row.admin_up,
@@ -90,6 +102,8 @@ def sync_interfaces(device, rows, settings, result, config=None):
             values["parent"] = parent
         if bridge:
             values["bridge"] = bridge
+        if lag:
+            values["lag"] = lag
         if interface is None:
             interface = Interface.objects.create(device=device, name=row.name, **values)
             result.interfaces_created += 1
@@ -98,6 +112,7 @@ def sync_interfaces(device, rows, settings, result, config=None):
             update_fields(interface, values, result)
             result.interfaces_updated += 1
         interfaces[row.name] = interface
+        sync_interface_vlans(interface, row, device.site, result)
         record_synced_object(result, interface)
         if settings.sync_mac_addresses and valid_mac(row.mac_address):
             sync_mac(interface, row.mac_address, result)
@@ -259,6 +274,8 @@ def interface_type(row, settings=None):
     """Mapuj typ i szybkość źródła na prawidłową wartość choices NetBox."""
     name = row.name.casefold()
     kind = row.interface_type.casefold()
+    if kind == "lag" or re.fullmatch(r"(?:port-?channel|po)\d+", name):
+        return "lag"
     if kind == "cisco-stackwise":
         return "cisco-stackwise"
     if kind == "bridge":

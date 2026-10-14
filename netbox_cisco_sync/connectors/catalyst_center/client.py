@@ -105,6 +105,16 @@ class CatalystCenterClient:
             f"/dna/intent/api/v1/interface/network-device/{device_id}"
         )
 
+    def get_port_channel(self, device_id, interface_id):
+        """Odczytaj członków LAG po identyfikatorze z listy interfejsów CCC."""
+        payload = self._json(
+            f"/dna/intent/api/v1/networkDevices/{device_id}/portChannels/{interface_id}"
+        )
+        value = payload.get("response") if isinstance(payload, dict) else None
+        if not isinstance(value, dict) or "interfaces" not in value:
+            raise CatalystCenterError("Port channel response did not contain membership data.")
+        return value
+
     def get_device_stack(self, device_id):
         """Pobierz szczegóły członków stacka dla jednego urządzenia."""
         paths = (
