@@ -112,7 +112,7 @@ def sync_interfaces(device, rows, settings, result, config=None):
             update_fields(interface, values, result)
             result.interfaces_updated += 1
         interfaces[row.name] = interface
-        sync_interface_vlans(interface, row, device.site, result)
+        sync_interface_vlans(interface, row, result)
         record_synced_object(result, interface)
         if settings.sync_mac_addresses and valid_mac(row.mac_address):
             sync_mac(interface, row.mac_address, result)
