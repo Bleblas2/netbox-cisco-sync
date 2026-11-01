@@ -13,3 +13,4 @@ AGENTS.md
 .env.*
 !.env.example
 *:Zone.Identifier
+/scripts/
