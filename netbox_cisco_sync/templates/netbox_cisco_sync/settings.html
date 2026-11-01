@@ -1,0 +1,36 @@
+{% extends 'generic/object_edit.html' %}
+
+{% block title %}Cisco Sync Settings{% endblock %}
+
+{% block tabs %}
+{% include 'netbox_cisco_sync/inc/settings_source_tabs.html' %}
+<ul class="nav nav-tabs">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="edit-form-tab" data-bs-toggle="tab"
+            data-bs-target="#edit-form" type="button" role="tab"
+            aria-controls="edit-form" aria-selected="true">
+      Settings
+    </button>
+  </li>
+</ul>
+{% endblock %}
+
+{% block content %}
+{% url 'plugins:netbox_cisco_sync:settings' as vmanage_settings_url %}
+{% url 'plugins:netbox_cisco_sync:catalyst_settings' as catalyst_settings_url %}
+{% url 'plugins:netbox_cisco_sync:meraki_settings' as meraki_settings_url %}
+{% if active_tab == 'catalyst_center' or request.path == catalyst_settings_url %}
+<form method="post" action="{% url 'plugins:netbox_cisco_sync:catalyst_test' %}" class="text-end mb-3">
+  {% csrf_token %}<button type="submit" class="btn btn-outline-primary">Test connection</button>
+</form>
+{% elif active_tab == 'vmanage' or request.path == vmanage_settings_url %}
+<form method="post" action="{% url 'plugins:netbox_cisco_sync:vmanage_test' %}" class="text-end mb-3">
+  {% csrf_token %}<button type="submit" class="btn btn-outline-primary">Test connection</button>
+</form>
+{% elif active_tab == 'meraki' or request.path == meraki_settings_url %}
+<form method="post" action="{% url 'plugins:netbox_cisco_sync:meraki_test' %}" class="text-end mb-3">
+  {% csrf_token %}<button type="submit" class="btn btn-outline-primary">Test connection</button>
+</form>
+{% endif %}
+{{ block.super }}
+{% endblock %}

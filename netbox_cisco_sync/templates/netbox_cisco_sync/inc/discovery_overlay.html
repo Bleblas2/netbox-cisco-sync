@@ -1,0 +1,23 @@
+<div
+  id="discovery-overlay"
+  class="position-fixed top-0 start-0 w-100 h-100 align-items-center justify-content-center"
+  style="display: none; z-index: 2000; background: rgba(0, 0, 0, 0.55);"
+>
+  <div class="card shadow">
+    <div class="card-body text-center p-4">
+      <div class="spinner-border text-primary mb-3" role="status">
+        <span class="visually-hidden">Loading…</span>
+      </div>
+      <div class="h5 mb-1">Discovering devices from {{ discovery_source_name }}…</div>
+      <div class="text-muted">The page will reload automatically.</div>
+    </div>
+  </div>
+</div>
+<script>
+  document.querySelectorAll(".device-discovery-form").forEach(function (form) {
+    form.addEventListener("submit", function () {
+      document.getElementById("discovery-overlay").style.display = "flex";
+      form.querySelector("button[type='submit']").disabled = true;
+    });
+  });
+</script>

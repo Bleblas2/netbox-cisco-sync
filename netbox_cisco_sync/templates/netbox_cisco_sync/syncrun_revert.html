@@ -1,0 +1,3 @@
+{% extends 'generic/object_delete.html' %}
+{% block title %}Revert vManage Sync Run #{{ object.pk }}{% endblock %}
+{% block message %}<p>Delete only the objects created by this run? Existing objects and recorded updates are not reverted.</p>{% endblock %}

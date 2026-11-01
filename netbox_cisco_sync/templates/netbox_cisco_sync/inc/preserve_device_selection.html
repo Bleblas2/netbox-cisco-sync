@@ -1,0 +1,15 @@
+<script>
+(function () {
+  const key = "netbox-cisco-sync-selection:" + window.location.pathname;
+  const boxes = () => Array.from(document.querySelectorAll('input[name="pk"]'));
+  function save() {
+    sessionStorage.setItem(key, JSON.stringify(boxes().filter((box) => box.checked).map((box) => box.value)));
+  }
+  document.addEventListener("change", function (event) {
+    if (event.target.matches('input[name="pk"], input[name="_all"]')) window.setTimeout(save, 0);
+  });
+  document.addEventListener("submit", save);
+  const saved = new Set(JSON.parse(sessionStorage.getItem(key) || "[]"));
+  boxes().forEach((box) => { box.checked = saved.has(box.value); });
+})();
+</script>

@@ -1,0 +1,17 @@
+{% url 'plugins:netbox_cisco_sync:settings' as vmanage_settings_url %}
+{% url 'plugins:netbox_cisco_sync:catalyst_settings' as catalyst_settings_url %}
+{% url 'plugins:netbox_cisco_sync:meraki_settings' as meraki_settings_url %}
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item">
+    <a class="nav-link{% if active_tab == 'vmanage' or request.path == vmanage_settings_url or request.resolver_match.url_name == 'settings' %} active{% endif %}"
+       href="{{ vmanage_settings_url }}">vManage</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link{% if active_tab == 'catalyst_center' or request.path == catalyst_settings_url or request.resolver_match.url_name == 'catalyst_settings' %} active{% endif %}"
+       href="{{ catalyst_settings_url }}">Catalyst Center</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link{% if active_tab == 'meraki' or request.path == meraki_settings_url or request.resolver_match.url_name == 'meraki_settings' %} active{% endif %}"
+       href="{{ meraki_settings_url }}">Meraki</a>
+  </li>
+</ul>

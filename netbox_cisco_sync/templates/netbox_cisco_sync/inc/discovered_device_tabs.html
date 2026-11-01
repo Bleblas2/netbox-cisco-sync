@@ -1,0 +1,56 @@
+<ul class="nav nav-tabs mb-3">
+  {% if perms.netbox_cisco_sync.view_devicevmanageconfig %}
+    <li class="nav-item">
+      <a class="nav-link{% if discovered_source == 'vmanage' or request.resolver_match.url_name == 'devicevmanageconfig_list' %} active{% endif %}"
+         href="{% url 'plugins:netbox_cisco_sync:devicevmanageconfig_list' %}">vManage</a>
+    </li>
+  {% endif %}
+  {% if perms.netbox_cisco_sync.view_devicecatalystcenterconfig %}
+    <li class="nav-item">
+      <a class="nav-link{% if discovered_source == 'catalyst_center' or request.resolver_match.url_name == 'devicecatalystcenterconfig_list' %} active{% endif %}"
+         href="{% url 'plugins:netbox_cisco_sync:devicecatalystcenterconfig_list' %}">Catalyst Center</a>
+    </li>
+  {% endif %}
+  {% if perms.netbox_cisco_sync.view_devicemerakiconfig %}
+    <li class="nav-item">
+      <a class="nav-link{% if discovered_source == 'meraki' or request.resolver_match.url_name == 'devicemerakiconfig_list' %} active{% endif %}"
+         href="{% url 'plugins:netbox_cisco_sync:devicemerakiconfig_list' %}">Meraki Dashboard</a>
+    </li>
+  {% endif %}
+</ul>
+
+<script>
+  window.addEventListener("load", function () {
+    // Wszystkie platformy mają inne ścieżki URL, ale należą do jednej pozycji
+    // Discovered Devices. NetBox 4.6 nie pozwala wskazać ich w PluginMenuItem.
+    const menuPath = "{% url 'plugins:netbox_cisco_sync:discovered_devices' %}";
+    const menuLink = Array.from(
+      document.querySelectorAll(".navbar-nav a[href]")
+    ).find(function (link) {
+      return new URL(link.href, window.location.origin).pathname === menuPath;
+    });
+
+    if (!menuLink) {
+      return;
+    }
+
+    menuLink.classList.add("active");
+    const menuItem = menuLink.closest(".dropdown-item");
+    const pluginMenu = menuLink.closest(".dropdown");
+    if (menuItem) {
+      menuItem.classList.add("active");
+    }
+    if (pluginMenu) {
+      pluginMenu.classList.add("active");
+      const toggle = pluginMenu.querySelector(":scope > .dropdown-toggle");
+      const dropdown = pluginMenu.querySelector(":scope > .dropdown-menu");
+      if (toggle) {
+        toggle.classList.add("active", "show");
+        toggle.setAttribute("aria-expanded", "true");
+      }
+      if (dropdown) {
+        dropdown.classList.add("show");
+      }
+    }
+  });
+</script>

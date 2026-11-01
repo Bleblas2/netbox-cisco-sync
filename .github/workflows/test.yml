@@ -1,0 +1,50 @@
+name: Installation checks
+on:
+  push:
+  pull_request:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  installation:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: netbox
+          POSTGRES_USER: netbox
+          POSTGRES_PASSWORD: ci-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U netbox -d netbox"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: valkey/valkey:9.1-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build test image
+        run: docker build --build-arg NETBOX_IMAGE=netboxcommunity/netbox:v4.6.3 -t cisco-sync-test .
+      - name: Prepare plugin configuration
+        run: |
+          cat > "$RUNNER_TEMP/cisco-sync-plugins.py" <<'PY'
+          PLUGINS = ["netbox_cisco_sync"]
+          PLUGINS_CONFIG = {"netbox_cisco_sync": {}}
+          PY
+      - name: Check installation and migrations
+        run: |
+          docker run --rm --network host --user root \
+            -e DB_HOST=127.0.0.1 -e DB_NAME=netbox -e DB_USER=netbox -e DB_PASSWORD=ci-only-password \
+            -e REDIS_HOST=127.0.0.1 -e REDIS_CACHE_HOST=127.0.0.1 \
+            -e SECRET_KEY=ci-only-key-not-for-production-012345678901234567890123456789012345 \
+            -e API_TOKEN_PEPPER_1=ci-only-pepper-not-for-production-012345678901234567890123456789012345 \
+            -v "$RUNNER_TEMP/cisco-sync-plugins.py:/etc/netbox/config/plugins.py:ro" \
+            --entrypoint /bin/sh cisco-sync-test -ec '
+              export PYTHONPATH=/opt/netbox/netbox
+              python /opt/netbox/netbox/manage.py migrate --noinput
+              python /opt/netbox/netbox/manage.py check
+              python /opt/netbox/netbox/manage.py makemigrations netbox_cisco_sync --check --dry-run
+            '

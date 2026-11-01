@@ -1,0 +1,8 @@
+<button
+  type="submit"
+  name="_apply_selected"
+  formaction="{{ url }}{% if url_params %}?{{ url_params.urlencode }}{% endif %}"
+  class="btn btn-success"
+>
+  <i class="mdi mdi-check" aria-hidden="true"></i> {{ label }}
+</button>

@@ -1,0 +1,199 @@
+{% extends 'base/layout.html' %}
+{% load form_helpers %}
+
+{% block title %}{{ source_name }} device — {{ object.hostname }}{% endblock %}
+
+{% block content %}
+  {% include 'netbox_cisco_sync/inc/discovered_device_tabs.html' %}
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-1">{{ source_name }} device — {{ object.hostname }}</h1>
+      <p class="text-muted mb-0">
+        Configure Site mapping and select the interfaces included in Preview and Apply.
+      </p>
+    </div>
+    <a href="{% url delete_url_name pk=object.pk %}" class="btn btn-outline-danger">
+      <i class="mdi mdi-trash-can-outline"></i> Delete discovery record
+    </a>
+  </div>
+
+  <form method="post" id="device-sync-form">
+    {% csrf_token %}
+    <input type="hidden" name="run" value="{{ run.pk }}">
+
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="row">
+      <div class="col col-lg-6">
+        <div class="card mb-3">
+          <h2 class="card-header">NetBox synchronization</h2>
+          <div class="card-body">
+            {% render_field form.netbox_site %}
+            {% render_field form.manual_site_override %}
+            {% render_field form.enabled %}
+            {% render_field form.tags %}
+          </div>
+        </div>
+      </div>
+      <div class="col col-lg-6">
+        <div class="card mb-3">
+          <h2 class="card-header">Source device</h2>
+          <table class="table table-hover attr-table mb-0">
+            <tr><th>Name</th><td>{{ object.hostname }}</td></tr>
+            <tr><th>Model</th><td>{{ object.device_model|default:"—" }}</td></tr>
+            <tr><th>Serial number</th><td>{{ object.serial_number|default:"—" }}</td></tr>
+            <tr><th>Management IP</th><td>{{ source_management_ip|default:"—" }}</td></tr>
+            <tr><th>{{ source_site_label }}</th><td>{{ source_site_name|default:"—" }}</td></tr>
+            <tr><th>{{ source_identifier_label }}</th><td>{{ source_identifier|default:"—" }}</td></tr>
+            <tr><th>Current match method</th><td>{{ object.get_match_method_display }}</td></tr>
+            <tr><th>NetBox Device</th><td>{{ object.device|default:"—" }}</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <h2 class="card-header">Planned result</h2>
+      <table class="table table-hover attr-table mb-0">
+        <tr><th>NetBox Site</th><td>{{ object.netbox_site|default:"Unmatched" }}</td></tr>
+        <tr><th>Device</th><td>create {{ result.devices_created }}, update {{ result.devices_updated }}</td></tr>
+        <tr><th>Interfaces</th><td>{{ result.interfaces_created }}</td></tr>
+        <tr><th>IP addresses</th><td>{{ result.ips_created }}</td></tr>
+        <tr><th>MAC addresses</th><td>{{ result.macs_created }}</td></tr>
+        <tr><th>FHRP groups</th><td>{{ result.fhrp_groups_created }}</td></tr>
+        <tr><th>Result</th><td>{{ result.message }}</td></tr>
+        <tr><th>Preview Sync Run</th><td>#{{ run.pk }}</td></tr>
+      </table>
+    </div>
+
+    <div class="card mb-3">
+      <h2 class="card-header">Collected interfaces</h2>
+      <div class="card-body pb-0">
+        <p class="text-muted">
+          Checked interfaces will be synchronized. Names and patterns from
+          DEFAULT_PLUGIN_SETTINGS are collected and displayed, but start unchecked
+          until you explicitly select them.
+          Refresh / ReSync is the only action on this page that queries {{ source_name }}.
+        </p>
+        {% if form.interfaces.errors %}
+          <div class="alert alert-danger">{{ form.interfaces.errors }}</div>
+        {% endif %}
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th class="text-center">Sync</th>
+              <th>Present</th>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Label</th>
+              <th>Admin</th>
+              <th>Operational</th>
+              <th>Speed</th>
+              <th>NetBox type</th>
+              <th>L2 mode</th>
+              <th>Untagged VLAN</th>
+              <th>Bridge</th>
+              <th>LAG</th>
+              <th>IPv4</th>
+              <th>Mask</th>
+              <th>IPv6</th>
+              <th>MAC</th>
+              <th>VPN</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for iface in data.interfaces %}
+              <tr>
+                <td class="text-center">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    name="interfaces"
+                    value="{{ iface.name }}"
+                    id="interface-{{ forloop.counter }}"
+                    {% if iface.name in selected_names %}checked{% endif %}
+                    {% if not iface.present or not settings.sync_interfaces or settings.ignore_disabled_interfaces and not iface.admin_up %}disabled{% endif %}
+                  >
+                </td>
+                <td>{{ iface.present|yesno:"Yes,No" }}</td>
+                <td><label for="interface-{{ forloop.counter }}">{{ iface.name }}</label></td>
+                <td>{{ iface.description }}</td>
+                <td>{{ iface.label|default:"—" }}</td>
+                <td>{{ iface.admin_up|yesno:"Up,Disabled" }}</td>
+                <td>{{ iface.oper_up|yesno:"Connected,Disconnected" }}</td>
+                <td>
+                  {% if iface.effective_speed_mbps %}
+                    {{ iface.effective_speed_mbps|floatformat:"-2" }} Mbps
+                    {% if not iface.speed_mbps %}<span class="text-muted">(default)</span>{% endif %}
+                  {% endif %}
+                </td>
+                <td>{{ iface.netbox_type }}</td>
+                <td>{{ iface.mode|default:"—" }}</td>
+                <td>{{ iface.untagged_vlan|default:"—" }}</td>
+                <td>{{ iface.bridge_name|default:"—" }}</td>
+                <td>{{ iface.lag_name|default:"—" }}</td>
+                <td>{{ iface.ipv4_address }}</td>
+                <td>{{ iface.ipv4_mask }}</td>
+                <td>{{ iface.ipv6_addresses|join:", " }}</td>
+                <td>{{ iface.mac_address }}</td>
+                <td>{{ iface.vpn_id }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="18">No interfaces stored for {{ source_name }}.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="text-muted small mb-3">
+      Interface cache:
+      {% if interfaces_last_refreshed %}
+        last refreshed {{ interfaces_last_refreshed }}
+      {% else %}
+        not refreshed yet
+      {% endif %}
+    </div>
+    <div class="text-end">
+      <a href="{% url list_url_name %}" class="btn btn-outline-secondary">Cancel</a>
+      <button type="submit" name="action" value="save" class="btn btn-outline-primary">
+        <i class="mdi mdi-content-save"></i> Save
+      </button>
+      <button type="submit" name="action" value="refresh" class="btn btn-outline-warning">
+        <i class="mdi mdi-refresh"></i> Refresh / ReSync
+      </button>
+      <button type="submit" name="action" value="apply" class="btn btn-success">
+        <i class="mdi mdi-sync"></i> Apply selected snapshot
+      </button>
+    </div>
+  </form>
+
+  <div
+    id="interface-refresh-overlay"
+    class="position-fixed top-0 start-0 w-100 h-100 align-items-center justify-content-center"
+    style="display: none; z-index: 2000; background: rgba(0, 0, 0, 0.55);"
+  >
+    <div class="card shadow">
+      <div class="card-body text-center p-4">
+        <div class="spinner-border text-primary mb-3" role="status">
+          <span class="visually-hidden">Loading…</span>
+        </div>
+        <div class="h5 mb-1">Discovering interfaces from {{ source_name }}…</div>
+        <div class="text-muted">The page will reload automatically.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("device-sync-form").addEventListener("submit", function (event) {
+      if (event.submitter && event.submitter.value === "refresh") {
+        document.getElementById("interface-refresh-overlay").style.display = "flex";
+      }
+    });
+  </script>
+{% endblock %}
