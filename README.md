@@ -347,20 +347,6 @@ The shared synchronization engine lives in `netbox_cisco_sync/sync/`.
 Source-specific API access and normalization live in
 `netbox_cisco_sync/connectors/`.
 
-Important modules:
-
-- `sync/orchestrator.py` — Preview and Apply coordination;
-- `sync/interfaces.py` — interfaces, selection, status, speed, and MAC handling;
-- `sync/addresses.py` — IP assignment and primary IP selection;
-- `sync/fhrp.py` — VRRP/FHRP objects;
-- `sync/sites.py` — platform-specific Site identifiers;
-- `interface_cache.py` — relational source-interface cache;
-- `jobs.py` — bulk and scheduled work;
-- `models.py` — Settings, discovery inventory, cache, and audit history;
-- `views.py` — stable public exports used by URL configuration;
-- `view_modules/` — shared, platform, Settings, and Sync Run views split by
-  responsibility.
-
 ### Test Environments
 
 The plugin was tested in sandbox environments and in production installations.
